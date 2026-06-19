@@ -1,0 +1,15 @@
+# Original tutorials are PDFs - usually fine to keep
+# But ignore some junk
+**/.DS_Store
+**/__pycache__/
+**/*.pyc
+
+# Do not commit built artifacts from code/
+code/yahboomcar_ros2_ws/build/
+code/yahboomcar_ros2_ws/install/
+code/yahboomcar_ros2_ws/log/
+
+# Large binary files that belong in Google Drive (optional)
+# *.zip
+# *.tar
+# *.img

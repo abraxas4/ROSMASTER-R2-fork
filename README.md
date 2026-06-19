@@ -34,3 +34,31 @@ https://www.facebook.com/yahboomtech
 ### Technical support email: 
 support@yahboom.com
 
+---
+
+## Git으로 코드 관리 + Rover에서 git pull만 받기 (추가)
+
+이 fork는 **실제 ROS 코드도 git으로 관리**할 수 있도록 구조를 추가했습니다.
+
+자세한 내용은 [DEVELOPMENT.md](DEVELOPMENT.md) 를 참고하세요.
+
+### 빠른 개요 (Jetson Orin)
+
+**로버에서 업데이트 받기:**
+```bash
+cd /home/jetson/ROSMASTER-R2-fork
+bash scripts/update_code.sh
+```
+
+**PC에서 개발 후 push:**
+```bash
+# code/yahboomcar_ros2_ws/src/ 안의 패키지 수정
+git add .
+git commit -m "update"
+git push origin main
+```
+
+Google Drive의 `5.Code` 를 `code/yahboomcar_ros2_ws/src/` 로 복사해서 사용하세요.
+
+Docker 스크립트는 `scripts/run_docker.sh` 를 참고 (워크스페이스 마운트 포함).
+

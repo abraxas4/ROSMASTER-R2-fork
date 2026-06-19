@@ -1,0 +1,35 @@
+# ROS2 / colcon build artifacts
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp / logs
+*.log
+*.bag
+*.db
+temp/
+
+# Maps and data that should be per-robot (optional, remove if you want to version them)
+maps/
+rosboard/
