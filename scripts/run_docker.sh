@@ -7,7 +7,9 @@ echo "=== ROSMASTER R2 Docker 시작 (Git 관리 버전) ==="
 xhost +
 
 # === 사용자 환경에 맞게 수정하세요 ===
-GIT_REPO_PATH="/home/jetson/ROSMASTER-R2-fork"
+# 현재 사용자 홈을 자동 감지 (jetson / orin 등)
+USER_HOME=$(eval echo ~$USER)
+GIT_REPO_PATH="${USER_HOME}/ROSMASTER-R2-fork"
 WORKSPACE_HOST="${GIT_REPO_PATH}/code/yahboomcar_ros2_ws"
 
 # Docker 이미지 태그 (실제 사용하는 최신 버전으로 변경)

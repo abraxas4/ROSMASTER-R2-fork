@@ -16,6 +16,7 @@ git pull --rebase
 
 echo "[2/3] 워크스페이스 권한 정리 (필요시)..."
 WORKSPACE="$REPO_ROOT/code/yahboomcar_ros2_ws"
+USER_HOME=$(eval echo ~$USER)
 
 # build/install/log 이 있으면 소유자 정리 (Docker 안에서 빌드한 경우 흔함)
 if [ -d "$WORKSPACE/build" ] || [ -d "$WORKSPACE/install" ]; then

@@ -26,9 +26,10 @@ fi
 
 # 3. 호스트에 필요한 데이터 폴더 생성 (기존 마운트 호환)
 echo "[3/4] 호스트 데이터 폴더 생성..."
-mkdir -p /home/jetson/temp
-mkdir -p /home/jetson/rosboard
-mkdir -p /home/jetson/maps
+USER_HOME=$(eval echo ~$USER)
+mkdir -p "$USER_HOME/temp"
+mkdir -p "$USER_HOME/rosboard"
+mkdir -p "$USER_HOME/maps"
 
 # 4. 안내
 echo "[4/4] 설정 완료!"
