@@ -9,7 +9,7 @@ code/yahboomcar_ros2_ws/build/
 code/yahboomcar_ros2_ws/install/
 code/yahboomcar_ros2_ws/log/
 
-# Large binary files that belong in Google Drive (optional)
-# *.zip
-# *.tar
-# *.img
+# Large binary files from Yahboom Code (keep locally, do not push to GitHub)
+code/yahboomcar_ros2_ws/src/yahboomcar_slam/params/ORBvoc.txt
+code/yahboomcar_ros2_ws/src/yahboomcar_mediapipe/yahboomcar_mediapipe/file/shape_predictor_68_face_landmarks.dat
+code/yahboomcar_ros2_ws/src/yahboomcar_visual/detection/frozen_inference_graph.pb

@@ -16,6 +16,7 @@ TMP_DIR="${TMPDIR:-/tmp}/rosmaster-r2-code-$$"
 ROS2_CODE_FOLDER_ID="16rQNu4VPo2gbbTZcIk1qDcX1z5Jqf7yH"
 ROS2_CODE_ZIP_ID="1IgohdB66u47zObk3OAVP58SviepjIFX1"
 DRIVE_LINK="https://drive.google.com/drive/folders/1liW0vHoQVXqhjQ10amefKF0-oyGHBqj-"
+PLATFORM="${PLATFORM:-orin}"
 
 FROM_ZIP=""
 FROM_DIR=""
@@ -26,6 +27,7 @@ Usage:
   bash scripts/download_code.sh
   bash scripts/download_code.sh --from-zip /path/to/ROSMASTER-R2-ROS2-Code.zip
   bash scripts/download_code.sh --from-dir /path/to/extracted/yahboomcar_ros2_ws
+  PLATFORM=orin bash scripts/download_code.sh --from-zip /path/to/ROSMASTER-R2-ROS2-Code-002.zip
 
 Google Drive (브라우저):
   $DRIVE_LINK
@@ -41,6 +43,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --from-dir)
             FROM_DIR="${2:-}"
+            shift 2
+            ;;
+        --platform)
+            PLATFORM="${2:-orin}"
             shift 2
             ;;
         -h|--help)
@@ -110,6 +116,11 @@ resolve_src_tree() {
         fi
     fi
 
+    if [[ -d "$root/yahboomcar_ros2_ws/yahboomcar_ws/src" ]]; then
+        echo "$root/yahboomcar_ros2_ws/yahboomcar_ws/src"
+        return 0
+    fi
+
     if [[ -d "$root/yahboomcar_ros2_ws/src" ]]; then
         echo "$root/yahboomcar_ros2_ws/src"
         return 0
@@ -121,6 +132,12 @@ resolve_src_tree() {
     fi
 
     local candidate
+    candidate="$(find "$root" -type d -path '*/yahboomcar_ros2_ws/yahboomcar_ws/src' 2>/dev/null | head -1)"
+    if [[ -n "$candidate" ]]; then
+        echo "$candidate"
+        return 0
+    fi
+
     candidate="$(find "$root" -type d -path '*/yahboomcar_ros2_ws/src' 2>/dev/null | head -1)"
     if [[ -n "$candidate" ]]; then
         echo "$candidate"
@@ -135,6 +152,32 @@ resolve_src_tree() {
     return 1
 }
 
+extract_nested_workspace_zip() {
+    local root="$1"
+    local platform_dir=""
+    local nested_zip=""
+
+    case "$PLATFORM" in
+        orin|orin-super|jetson-orin)
+            platform_dir="$(find "$root" -maxdepth 1 -type d -iname 'For jetson orin super' 2>/dev/null | head -1)"
+            ;;
+        nano|pi5|nano-pi5)
+            platform_dir="$(find "$root" -maxdepth 1 -type d -iname 'For jetson nano-pi5' 2>/dev/null | head -1)"
+            ;;
+    esac
+
+    if [[ -n "$platform_dir" && -f "$platform_dir/yahboomcar_ros2_ws.zip" ]]; then
+        nested_zip="$platform_dir/yahboomcar_ros2_ws.zip"
+    else
+        nested_zip="$(find "$root" -type f -name 'yahboomcar_ros2_ws.zip' 2>/dev/null | head -1)"
+    fi
+
+    if [[ -n "$nested_zip" ]]; then
+        echo "Extracting nested workspace: $nested_zip"
+        unzip -q "$nested_zip" -d "$root"
+    fi
+}
+
 install_from_zip() {
     local zip_path="$1"
 
@@ -145,6 +188,7 @@ install_from_zip() {
 
     echo "Extracting: $zip_path"
     unzip -q "$zip_path" -d "$TMP_DIR"
+    extract_nested_workspace_zip "$TMP_DIR"
 
     local source_src
     if ! source_src="$(resolve_src_tree "$TMP_DIR")"; then
