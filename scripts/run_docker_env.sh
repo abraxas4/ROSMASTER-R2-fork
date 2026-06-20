@@ -7,7 +7,9 @@ WORKSPACE_HOST="${GIT_REPO_PATH}/code/yahboomcar_ros2_ws"
 
 resolve_docker_image() {
     local preferred=(
-        "yahboomtechnology/ros-foxy:3.5.4"
+        "yahboomtechnology/ros-foxy:4.0.7R2"
+        "yahboomtechnology/ros-foxy:4.0.7"
+        "yahboomtechnology/ros-foxy:3.9.1"
         "yahboomtechnology/ros-foxy-orbslam2:1.0.0"
     )
     local image
@@ -41,7 +43,7 @@ collect_device_args() {
 if ! DOCKER_IMAGE="$(resolve_docker_image)"; then
     echo "ERROR: No ROS2 Docker image found."
     echo "Install one of:"
-    echo "  docker pull yahboomtechnology/ros-foxy:3.5.4"
+    echo "  docker pull yahboomtechnology/ros-foxy:4.0.7R2"
     echo "  (or ensure yahboomtechnology/ros-foxy-orbslam2:1.0.0 exists)"
     exit 1
 fi
