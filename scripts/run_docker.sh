@@ -13,6 +13,7 @@ source "$SCRIPT_DIR/run_docker_env.sh"
 xhost +
 
 echo "Mounting workspace: ${WORKSPACE_HOST} -> /root/yahboomcar_ros2_ws"
+echo "Mounting library_ws: ${LIBRARY_WS_HOST}/install -> /root/library_ws/install"
 echo "Using image: ${DOCKER_IMAGE}"
 echo ""
 
@@ -25,12 +26,16 @@ docker run -it \
   --net=host \
   --env="DISPLAY" \
   --env="QT_X11_NO_MITSHM=1" \
+  --env="ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-28}" \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
   -v "${WORKSPACE_HOST}:/root/yahboomcar_ros2_ws" \
+  -v "${LIBRARY_WS_HOST}/install:/root/library_ws/install" \
+  -v "${SCRIPT_DIR}/docker_ros_setup.bash:/root/docker_ros_setup.bash:ro" \
   -v "${USER_HOME}/temp:/root/yahboomcar_ros2_ws/temp" \
   -v "${USER_HOME}/rosboard:/root/rosboard" \
   -v "${USER_HOME}/maps:/root/maps" \
   "${DEVICE_ARGS[@]}" \
   -p 9090:9090 \
   -p 8888:8888 \
-  "${DOCKER_IMAGE}" /bin/bash
+  "${DOCKER_IMAGE}" \
+  bash --init-file /root/docker_ros_setup.bash
