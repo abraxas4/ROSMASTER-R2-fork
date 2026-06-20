@@ -24,6 +24,6 @@ docker run --rm \
   -v "${USER_HOME}/maps:/root/maps" \
   "${DEVICE_ARGS[@]}" \
   "${DOCKER_IMAGE}" \
-  bash -lc 'cd /root/yahboomcar_ros2_ws && colcon build --symlink-install'
+  bash -lc 'source /opt/ros/foxy/setup.bash && cd /root/yahboomcar_ros2_ws && colcon build --symlink-install'
 
 echo "Build finished."
