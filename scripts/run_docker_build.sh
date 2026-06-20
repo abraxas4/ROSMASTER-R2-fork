@@ -26,9 +26,6 @@ docker run --rm \
   "${DOCKER_IMAGE}" \
   bash -lc '
     set -e
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update -qq
-    apt-get install -y -qq ros-foxy-turtlesim >/dev/null
     source /opt/ros/foxy/setup.bash
     cd /root/yahboomcar_ros2_ws
     colcon build --symlink-install \
