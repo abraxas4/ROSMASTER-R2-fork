@@ -24,6 +24,15 @@ docker run --rm \
   -v "${USER_HOME}/maps:/root/maps" \
   "${DEVICE_ARGS[@]}" \
   "${DOCKER_IMAGE}" \
-  bash -lc 'source /opt/ros/foxy/setup.bash && cd /root/yahboomcar_ros2_ws && colcon build --symlink-install'
+  bash -lc '
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq
+    apt-get install -y -qq ros-foxy-turtlesim >/dev/null
+    source /opt/ros/foxy/setup.bash
+    cd /root/yahboomcar_ros2_ws
+    colcon build --symlink-install \
+      --packages-skip yahboomcar_KCFTracker yahboomcar_mediapipe yahboomcar_visual yahboomcar_slam
+  '
 
 echo "Build finished."
