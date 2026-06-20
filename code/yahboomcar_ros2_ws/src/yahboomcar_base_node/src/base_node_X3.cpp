@@ -14,8 +14,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_ros/transform_broadcaster.h>
-#include "turtlesim/turtlesim/msg/pose.hpp"
-
 
 #include <memory>
 #include <string>

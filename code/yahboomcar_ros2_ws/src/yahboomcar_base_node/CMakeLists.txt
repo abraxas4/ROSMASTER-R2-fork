@@ -25,7 +25,6 @@ find_package(tf2_ros REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rclcpp  REQUIRED)
-find_package(turtlesim REQUIRED)
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
@@ -40,9 +39,9 @@ endif()
 add_executable(base_node_X3 src/base_node_X3.cpp)
 add_executable(base_node_x1 src/base_node_x1.cpp)
 add_executable(base_node_R2 src/base_node_R2.cpp)
-ament_target_dependencies(base_node_X3 rclcpp tf2 tf2_ros nav_msgs geometry_msgs turtlesim)
-ament_target_dependencies(base_node_x1 rclcpp tf2 tf2_ros nav_msgs geometry_msgs turtlesim)
-ament_target_dependencies(base_node_R2 rclcpp tf2 tf2_ros nav_msgs geometry_msgs turtlesim)
+ament_target_dependencies(base_node_X3 rclcpp tf2 tf2_ros nav_msgs geometry_msgs)
+ament_target_dependencies(base_node_x1 rclcpp tf2 tf2_ros nav_msgs geometry_msgs)
+ament_target_dependencies(base_node_R2 rclcpp tf2 tf2_ros nav_msgs geometry_msgs)
 install(TARGETS
   base_node_X3
   base_node_x1
