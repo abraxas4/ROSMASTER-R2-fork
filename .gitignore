@@ -9,7 +9,5 @@ code/yahboomcar_ros2_ws/build/
 code/yahboomcar_ros2_ws/install/
 code/yahboomcar_ros2_ws/log/
 
-# Large binary files from Yahboom Code (keep locally, do not push to GitHub)
+# Restored at runtime from .part.* chunks (see large_files.manifest)
 code/yahboomcar_ros2_ws/src/yahboomcar_slam/params/ORBvoc.txt
-code/yahboomcar_ros2_ws/src/yahboomcar_mediapipe/yahboomcar_mediapipe/file/shape_predictor_68_face_landmarks.dat
-code/yahboomcar_ros2_ws/src/yahboomcar_visual/detection/frozen_inference_graph.pb

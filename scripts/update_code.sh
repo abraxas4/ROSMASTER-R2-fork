@@ -11,10 +11,13 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
 cd "$REPO_ROOT"
 
-echo "[1/3] git pull 실행..."
+echo "[1/4] git pull 실행..."
 git pull --rebase
 
-echo "[2/3] 워크스페이스 권한 정리 (필요시)..."
+echo "[2/4] split large files 복원..."
+bash "$SCRIPT_DIR/restore_large_files.sh"
+
+echo "[3/4] 워크스페이스 권한 정리 (필요시)..."
 WORKSPACE="$REPO_ROOT/code/yahboomcar_ros2_ws"
 USER_HOME=$(eval echo ~$USER)
 
@@ -24,7 +27,7 @@ if [ -d "$WORKSPACE/build" ] || [ -d "$WORKSPACE/install" ]; then
     sudo chown -R $USER:$USER "$WORKSPACE/build" "$WORKSPACE/install" "$WORKSPACE/log" 2>/dev/null || true
 fi
 
-echo "[3/3] 완료!"
+echo "[4/4] 완료!"
 echo ""
 echo "다음 명령으로 Docker를 다시 시작하세요 (필요한 경우):"
 echo "  bash $SCRIPT_DIR/run_docker.sh"

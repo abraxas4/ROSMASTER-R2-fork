@@ -1,0 +1,3 @@
+# Large files stored as split parts in git (<100MB per part).
+# Restored to full files by scripts/restore_large_files.sh before runtime.
+src/yahboomcar_slam/params/ORBvoc.txt

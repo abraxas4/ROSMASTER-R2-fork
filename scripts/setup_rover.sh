@@ -12,12 +12,16 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 echo "Repo 위치: $REPO_ROOT"
 
 # 1. 실행 권한 부여
-echo "[1/4] 스크립트 실행 권한 설정..."
+echo "[1/5] 스크립트 실행 권한 설정..."
 chmod +x "$SCRIPT_DIR"/*.sh
 
-# 2. 워크스페이스 디렉토리 확인 (이미 git 안에 있음)
+# 2. split large files 복원
+echo "[2/5] split large files 복원..."
+bash "$SCRIPT_DIR/restore_large_files.sh"
+
+# 3. 워크스페이스 디렉토리 확인 (이미 git 안에 있음)
 WORKSPACE_PATH="$REPO_ROOT/code/yahboomcar_ros2_ws"
-echo "[2/4] 워크스페이스 경로: $WORKSPACE_PATH"
+echo "[3/5] 워크스페이스 경로: $WORKSPACE_PATH"
 
 PKG_COUNT=$(find "$WORKSPACE_PATH/src" -mindepth 1 -maxdepth 1 ! -name 'README.md' -type d 2>/dev/null | wc -l)
 if [ "$PKG_COUNT" -eq 0 ]; then
@@ -27,14 +31,14 @@ if [ "$PKG_COUNT" -eq 0 ]; then
 fi
 
 # 3. 호스트에 필요한 데이터 폴더 생성 (기존 마운트 호환)
-echo "[3/4] 호스트 데이터 폴더 생성..."
+echo "[4/5] 호스트 데이터 폴더 생성..."
 USER_HOME=$(eval echo ~$USER)
 mkdir -p "$USER_HOME/temp"
 mkdir -p "$USER_HOME/rosboard"
 mkdir -p "$USER_HOME/maps"
 
 # 4. 안내
-echo "[4/4] 설정 완료!"
+echo "[5/5] 설정 완료!"
 echo ""
 echo "다음 단계:"
 echo "1. ROS2 코드 설치:"

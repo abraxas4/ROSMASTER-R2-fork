@@ -285,6 +285,10 @@ main() {
     fi
 
     echo ""
+    echo "Restoring split large files (if parts exist in git)..."
+    bash "$SCRIPT_DIR/restore_large_files.sh"
+
+    echo ""
     echo "Done. Next steps:"
     echo "  git add code/yahboomcar_ros2_ws/src/"
     echo "  git commit -m \"Add ROS2 packages from Google Drive 5.Code\""
