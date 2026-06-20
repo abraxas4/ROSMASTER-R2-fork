@@ -4,6 +4,7 @@
 
 | 파일 | 용도 |
 |------|------|
+| `download_code.sh` | Google Drive `5.Code` 다운로드 및 `src/` 설치 |
 | `run_docker.sh` | Docker 컨테이너 실행 스크립트 (워크스페이스 마운트 포함) |
 | `setup_rover.sh` | 로버(Jetson Orin)에서 처음 한 번 실행할 셋업 스크립트 |
 | `update_code.sh` | git pull + 필요한 동기화 (로버에서 주로 사용) |
@@ -49,9 +50,15 @@ source install/setup.bash
 ## PC에서 작업하는 경우
 
 1. 이 repo를 clone
-2. `code/yahboomcar_ros2_ws/src/` 아래 패키지 수정
-3. git add/commit/push
-4. 로버에서 위 `update_code.sh` 실행
+2. ROS2 코드 최초 설치:
+   ```bash
+   bash scripts/download_code.sh
+   # 또는 브라우저로 받은 zip:
+   bash scripts/download_code.sh --from-zip ~/Downloads/ROSMASTER-R2-ROS2-Code.zip
+   ```
+3. `code/yahboomcar_ros2_ws/src/` 아래 패키지 수정
+4. git add/commit/push
+5. 로버에서 위 `update_code.sh` 실행
 
 ## 주의
 - `run_docker.sh` 는 기존 로버 스크립트를 기반으로 수정한 예시입니다.

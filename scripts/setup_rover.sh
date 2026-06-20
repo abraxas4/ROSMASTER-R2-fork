@@ -19,9 +19,11 @@ chmod +x "$SCRIPT_DIR"/*.sh
 WORKSPACE_PATH="$REPO_ROOT/code/yahboomcar_ros2_ws"
 echo "[2/4] 워크스페이스 경로: $WORKSPACE_PATH"
 
-if [ ! -d "$WORKSPACE_PATH/src" ]; then
-    echo "WARNING: $WORKSPACE_PATH/src 가 비어있습니다."
-    echo "Google Drive의 Code를 복사해서 src/ 안에 넣어주세요."
+PKG_COUNT=$(find "$WORKSPACE_PATH/src" -mindepth 1 -maxdepth 1 ! -name 'README.md' -type d 2>/dev/null | wc -l)
+if [ "$PKG_COUNT" -eq 0 ]; then
+    echo "WARNING: $WORKSPACE_PATH/src 에 ROS2 패키지가 없습니다."
+    echo "다음 명령으로 Google Drive Code를 설치하세요:"
+    echo "  bash $SCRIPT_DIR/download_code.sh"
 fi
 
 # 3. 호스트에 필요한 데이터 폴더 생성 (기존 마운트 호환)
@@ -35,8 +37,9 @@ mkdir -p "$USER_HOME/maps"
 echo "[4/4] 설정 완료!"
 echo ""
 echo "다음 단계:"
-echo "1. Google Drive '5.Code' 를 다운로드해서"
-echo "   $WORKSPACE_PATH/src/ 안에 복사하세요."
+echo "1. ROS2 코드 설치:"
+echo "   bash $SCRIPT_DIR/download_code.sh"
+echo "   (브라우저로 zip을 받았다면 --from-zip 옵션 사용)"
 echo ""
 echo "2. Docker 실행:"
 echo "   bash $SCRIPT_DIR/run_docker.sh"
