@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=R2 라이다만 매핑 (gmapping)
+Comment=Lidar-only SLAM without camera — lighter, faster test
+Exec=gnome-terminal --title=R2 Lidar Mapping -- bash -c "bash /home/jetson/ROSMASTER-R2-fork/scripts/start_mapping.sh; exec bash"
+Icon=utilities-system-monitor
+Terminal=false
+Categories=Development;Robotics;
+StartupNotify=true

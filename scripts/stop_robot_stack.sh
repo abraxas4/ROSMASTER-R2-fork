@@ -23,9 +23,21 @@ pkill -f 'map_gmapping_4ros_launch.py' 2>/dev/null || true
 pkill -f 'map_rtabmap_launch.py' 2>/dev/null || true
 pkill -f 'rtabmap_sync_launch.py' 2>/dev/null || true
 pkill -f 'rtabmap_viz_launch.py' 2>/dev/null || true
+pkill -f 'rtabmap_viz/rtabmap_viz' 2>/dev/null || true
+pkill -x rtabmap_viz 2>/dev/null || true
 pkill -f 'slam_gmapping' 2>/dev/null || true
 pkill -f 'rtabmap_slam.*/rtabmap' 2>/dev/null || true
 pkill -f 'rtabmap_sync.*/rgbd_sync' 2>/dev/null || true
+pkill -f 'robot_localization/ekf_node' 2>/dev/null || true
+pkill -f 'static_transform_publisher' 2>/dev/null || true
+pkill -f 'geofence_patrol.py' 2>/dev/null || true
+pkill -f 'rtabmap_localization_managed.launch.py' 2>/dev/null || true
+pkill -f 'nav2_bringup' 2>/dev/null || true
+pkill -f 'controller_server' 2>/dev/null || true
+pkill -f 'planner_server' 2>/dev/null || true
+pkill -f 'bt_navigator' 2>/dev/null || true
+pkill -f 'waypoint_follower' 2>/dev/null || true
+pkill -f 'lifecycle_manager' 2>/dev/null || true
 
 # Stop motors and silence board beeper.
 python3 - <<'PY' 2>/dev/null || true

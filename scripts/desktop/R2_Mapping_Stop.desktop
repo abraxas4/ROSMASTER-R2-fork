@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=R2 매핑 중지
+Comment=Stop mapping, camera, lidar nodes and silence beeper
+Exec=gnome-terminal --title=R2 Stop -- bash -c "bash /home/jetson/ROSMASTER-R2-fork/scripts/stop_robot_stack.sh; echo; read -p 'Press Enter to close...' _; exec bash"
+Icon=process-stop
+Terminal=false
+Categories=Development;Robotics;
+StartupNotify=true

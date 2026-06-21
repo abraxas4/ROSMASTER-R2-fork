@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROSMASTER R2 프로젝트 일지 — Fork부터 SLAM까지</title>
+  <style>
+    :root {
+      --bg: #f8f9fb;
+      --card: #ffffff;
+      --text: #1a1d26;
+      --muted: #5c6370;
+      --accent: #2563eb;
+      --accent-light: #dbeafe;
+      --ok: #059669;
+      --ok-bg: #d1fae5;
+      --warn: #d97706;
+      --warn-bg: #fef3c7;
+      --err: #dc2626;
+      --err-bg: #fee2e2;
+      --border: #e2e8f0;
+      --code-bg: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.75;
+      color: var(--text);
+      background: var(--bg);
+      margin: 0;
+      padding: 0;
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+    header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: #fff;
+      padding: 2.5rem 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 0 0 1rem 1rem;
+    }
+    header h1 { margin: 0 0 0.5rem; font-size: 1.75rem; font-weight: 700; }
+    header .sub { opacity: 0.9; font-size: 0.95rem; }
+    header .meta { margin-top: 1rem; font-size: 0.85rem; opacity: 0.8; }
+    nav.toc {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+    nav.toc h2 { margin: 0 0 0.75rem; font-size: 1rem; color: var(--muted); }
+    nav.toc ol { margin: 0; padding-left: 1.25rem; }
+    nav.toc a { color: var(--accent); text-decoration: none; }
+    nav.toc a:hover { text-decoration: underline; }
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.5rem;
+    }
+    h2 { font-size: 1.35rem; margin: 0 0 1rem; color: #0f172a; border-bottom: 2px solid var(--accent-light); padding-bottom: 0.4rem; }
+    h3 { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; color: #334155; }
+    h4 { font-size: 1rem; margin: 1rem 0 0.5rem; }
+    p { margin: 0.6rem 0; }
+    ul, ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+    li { margin: 0.35rem 0; }
+    code, pre {
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 0.88em;
+    }
+    code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 0.25rem;
+    }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem 1.25rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      margin: 0.75rem 0;
+    }
+    pre code { background: none; padding: 0; color: inherit; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      margin: 1rem 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f1f5f9; font-weight: 600; }
+    tr:nth-child(even) td { background: #fafbfc; }
+    .box {
+      border-radius: 0.5rem;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      border-left: 4px solid;
+    }
+    .box-goal { background: var(--accent-light); border-color: var(--accent); }
+    .box-ok { background: var(--ok-bg); border-color: var(--ok); }
+    .box-warn { background: var(--warn-bg); border-color: var(--warn); }
+    .box-err { background: var(--err-bg); border-color: var(--err); }
+    .box strong { display: block; margin-bottom: 0.35rem; }
+    .diagram {
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-weight: 600;
+      margin-right: 0.25rem;
+    }
+    .tag-fix { background: #dbeafe; color: #1d4ed8; }
+    .tag-bug { background: #fee2e2; color: #b91c1c; }
+    .tag-info { background: #e0e7ff; color: #4338ca; }
+    .timeline { list-style: none; padding: 0; margin: 0; }
+    .timeline li {
+      position: relative;
+      padding-left: 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .timeline li::before {
+      content: "";
+      position: absolute;
+      left: 0.35rem;
+      top: 0.55rem;
+      width: 0.55rem;
+      height: 0.55rem;
+      background: var(--accent);
+      border-radius: 50%;
+    }
+    .timeline li::after {
+      content: "";
+      position: absolute;
+      left: 0.6rem;
+      top: 1.2rem;
+      bottom: -1rem;
+      width: 2px;
+      background: var(--border);
+    }
+    .timeline li:last-child::after { display: none; }
+    .timeline .step-title { font-weight: 600; color: #0f172a; }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 2rem;
+    }
+    @media print {
+      body { background: #fff; }
+      section { break-inside: avoid; box-shadow: none; }
+      header { border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="wrap" style="padding:0;">
+    <h1>ROSMASTER R2 프로젝트 일지</h1>
+    <p class="sub">초보자가 Fork를 만들고, 문제를 하나씩 고쳐 SLAM 매핑까지 도달한 전 과정</p>
+    <p class="meta">작성일: 2026년 6월 21일 &nbsp;|&nbsp; Fork: <code>abraxas4/ROSMASTER-R2-fork</code> &nbsp;|&nbsp; 로버: Jetson Orin (hostname: yahboom)</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>목차</h2>
+  <ol>
+    <li><a href="#intro">왜 이 프로젝트를 시작했나</a></li>
+    <li><a href="#hardware">내 로봇과 개발 환경</a></li>
+    <li><a href="#fork">Fork란 무엇인가 — Upstream과의 관계</a></li>
+    <li><a href="#structure">폴더 구조 — 두 개의 워크스페이스</a></li>
+    <li><a href="#timeline">단계별로 한 일 (타임라인)</a></li>
+    <li><a href="#problems">실제로 만난 문제와 해결</a></li>
+    <li><a href="#docker-vs-native">핵심 결정: Docker vs Native Humble</a></li>
+    <li><a href="#slam">SLAM 매핑이 동작하게 된 방법</a></li>
+    <li><a href="#desktop">바탕화면 아이콘과 실시간 맵 보기</a></li>
+    <li><a href="#scripts">만든 스크립트 전체 목록</a></li>
+    <li><a href="#current">지금 상태와 앞으로 할 일</a></li>
+    <li><a href="#commands">자주 쓰는 명령어 치트시트</a></li>
+  </ol>
+</nav>
+
+<!-- 1. INTRO -->
+<section id="intro">
+  <h2>1. 왜 이 프로젝트를 시작했나</h2>
+
+  <div class="box box-goal">
+    <strong>최종 목표</strong>
+    집 안에서 ROSMASTER R2로 SLAM(동시 위치 추정·지도 작성)을 하고, 나중에 자율 주행 내비게이션까지 가는 것.
+  </div>
+
+  <p>Yahboom에서 ROSMASTER R2를 구매했습니다. 공식 튜토리얼과 Google Drive의 <code>5.Code</code> 패키지가 있지만, 그대로 쓰면:</p>
+  <ul>
+    <li>코드 수정이 로봇 본체에만 남고 <strong>버전 관리가 안 됨</strong></li>
+    <li>Yahboom 원본(upstream)에 실수로 commit할 위험이 있음</li>
+    <li>PC에서 SSH로 원격 개발하면서 <strong>로봇에는 git pull만</strong> 받고 싶음</li>
+    <li>불필요한 프로세스는 최소화 — <em>"the best part is no part"</em></li>
+  </ul>
+
+  <p>그래서 GitHub에 <strong>자기만의 fork</strong>(<code>abraxas4/ROSMASTER-R2-fork</code>)를 만들고, ROS2 코드를 그 안에 넣어 관리하기로 했습니다. Yahboom 원본은 건드리지 않고, 로봇에 이미 깔려 있던 <code>~/yahboomcar_ros2_ws</code>도 당분간 삭제하지 않고 병행 사용했습니다.</p>
+</section>
+
+<!-- 2. HARDWARE -->
+<section id="hardware">
+  <h2>2. 내 로봇과 개발 환경</h2>
+
+  <table>
+    <tr><th>항목</th><th>내 설정</th></tr>
+    <tr><td>로봇</td><td>ROSMASTER R2 (Ackermann 조향)</td></tr>
+    <tr><td>메인보드</td><td>Jetson Orin (사용자: <code>jetson</code>, 호스트명: <code>yahboom</code>)</td></tr>
+    <tr><td>라이다</td><td>YDLIDAR 4ROS</td></tr>
+    <tr><td>카메라</td><td>Orbbec Astra Plus (FHD-1080p, USB <code>2bc5:050f</code> RGB + <code>2bc5:060f</code> Depth)</td></tr>
+    <tr><td>ROS (실행용)</td><td><strong>Native ROS2 Humble</strong> — <code>/opt/ros/humble</code></td></tr>
+    <tr><td>ROS (빌드용)</td><td>Docker <code>yahboomtechnology/ros-foxy:4.0.7R2</code></td></tr>
+    <tr><td>ROS_DOMAIN_ID</td><td><code>28</code></td></tr>
+    <tr><td>ROBOT_TYPE</td><td><code>r2</code></td></tr>
+    <tr><td>개발 PC</td><td><code>/home/abraxas4/github/ROSMASTER-R2-fork</code>, SSH Host: <code>rover</code> → <code>192.168.35.9</code></td></tr>
+    <tr><td>시리얼 장치</td><td><code>/dev/myserial</code> → ttyUSB1 (모터보드), <code>/dev/ydlidar</code> → ttyUSB0 (라이다)</td></tr>
+  </table>
+
+  <h3>네트워크 정리 (왜 했나)</h3>
+  <p>로봇이 자체 WiFi 핫스팟(<code>ROSMASTER</code>)에 자동 연결되면 집 WiFi(<code>SK_WiFiGIGA496C_2.4G</code>) SSH 접속이 끊깁니다. 그래서:</p>
+  <ul>
+    <li>핫스팟 자동 연결(autoconnect) <strong>비활성화</strong></li>
+    <li>집 WiFi autoconnect <strong>우선순위 상향</strong></li>
+  </ul>
+</section>
+
+<!-- 3. FORK -->
+<section id="fork">
+  <h2>3. Fork란 무엇인가 — Upstream과의 관계</h2>
+
+  <div class="box box-info" style="border-color:#4338ca;background:#eef2ff;">
+    <strong>한 줄 요약</strong>
+    Fork = Yahboom 원본 저장소의 <strong>내 계정에 복사본</strong>. 내 복사본만 수정·commit하고, 원본에는 절대 push하지 않음.
+  </div>
+
+  <div class="diagram">Yahboom 원본 (upstream)          내 Fork (origin)
+  YahboomTechnology/ROSMASTER-R2  →  abraxas4/ROSMASTER-R2-fork
+         │                                    │
+         │  (읽기만, merge 선택)               │  commit & push
+         └────────────────────────────────────┘
+                          │
+                    git clone / git pull
+                          │
+                    로봇 Jetson
+              ~/ROSMASTER-R2-fork</div>
+
+  <h3>Google Drive <code>5.Code</code>는 왜 복사하나?</h3>
+  <p>Yahboom이 GitHub에는 튜토리얼 PDF만 올리고, <strong>실제 ROS2 패키지 소스</strong>는 Google Drive <code>5.Code</code>에 따로 둡니다. 이걸 fork 안의 <code>code/yahboomcar_ros2_ws/src/</code>에 넣으면:</p>
+  <ul>
+    <li>22개 ROS2 패키지가 git으로 관리됨</li>
+    <li>PC에서 수정 → push → 로버에서 pull</li>
+    <li>Upstream Yahboom에는 영향 없음</li>
+  </ul>
+
+  <p><code>scripts/download_code.sh</code>로 Google Drive에서 자동 다운로드·설치할 수 있게 만들었고, 큰 파일 <code>ORBvoc.txt</code>는 git 제한 때문에 분할 저장(<code>split_large_files.sh</code> / <code>restore_large_files.sh</code>)했습니다.</p>
+</section>
+
+<!-- 4. STRUCTURE -->
+<section id="structure">
+  <h2>4. 폴더 구조 — 두 개의 워크스페이스</h2>
+
+  <p>로봇에는 <strong>두 군데</strong>에 ROS 관련 코드가 있습니다. 처음엔 헷갈리기 쉬운데, 역할이 다릅니다.</p>
+
+  <table>
+    <tr><th>경로</th><th>역할</th><th>크기(대략)</th><th>삭제?</th></tr>
+    <tr>
+      <td><code>~/yahboomcar_ros2_ws</code></td>
+      <td>Yahboom 출하 시 설치된 <strong>원본</strong>. <code>library_ws</code>(라이다·SLAM·카메라 드라이버) + <code>yahboomcar_ws</code>(bringup·nav) 포함. <strong>지금 매핑에 실제로 사용 중</strong>.</td>
+      <td>~2.9GB</td>
+      <td>아직 NO</td>
+    </tr>
+    <tr>
+      <td><code>~/ROSMASTER-R2-fork</code></td>
+      <td>내가 만든 <strong>git 관리 fork</strong>. 코드 수정·스크립트·문서. Docker로 일부 패키지 빌드.</td>
+      <td>~1.9GB</td>
+      <td>메인 개발 repo</td>
+    </tr>
+  </table>
+
+  <div class="diagram">~/ROSMASTER-R2-fork/
+├── code/yahboomcar_ros2_ws/     ← fork 안 ROS 패키지 (git 관리)
+│   └── src/                     ← Google Drive 5.Code 내용
+├── scripts/                     ← 진단·매핑·Docker·바탕화면 설치 스크립트
+├── README.md, DEVELOPMENT.md
+└── (Yahboom PDF 튜토리얼)
+
+~/yahboomcar_ros2_ws/            ← Yahboom 원본 (아직 런타임에 필요)
+├── software/library_ws/         ← ydlidar, slam_gmapping, astra_camera, robot_localization
+└── yahboomcar_ws/               ← yahboomcar_nav, bringup, launch 파일</div>
+
+  <div class="box box-warn">
+    <strong>왜 원본을 아직 안 지우나?</strong>
+    <code>library_ws</code>는 Jetson 호스트용 GLIBC 2.35로 빌드되어 있어서, Foxy Docker 안에서는 실행이 안 됩니다. 매핑·센서는 이 바이너리를 <strong>native Humble</strong>로 실행합니다. fork를 Humble에서 완전히 빌드할 때까지 원본이 필요합니다.
+  </div>
+</section>
+
+<!-- 5. TIMELINE -->
+<section id="timeline">
+  <h2>5. 단계별로 한 일 (타임라인)</h2>
+
+  <ol class="timeline">
+    <li>
+      <div class="step-title">① Git 개발 구조 만들기</div>
+      <p>Fork repo 생성, <code>DEVELOPMENT.md</code> 작성, <code>scripts/update_code.sh</code>로 로버에서 <code>git pull</code>만 받도록 설계. 사용자 홈 경로 자동 감지(<code>~abraxas4</code> / <code>~jetson</code>).</p>
+    </li>
+    <li>
+      <div class="step-title">② Google Drive Code 설치</div>
+      <p><code>download_code.sh</code>로 <code>5.Code</code> → <code>code/yahboomcar_ros2_ws/src/</code>. 22개 패키지 중 git에 포함.</p>
+    </li>
+    <li>
+      <div class="step-title">③ Docker로 colcon build</div>
+      <p>이미지 <code>ros-foxy:4.0.7R2</code> 사용. <strong>18개 패키지 빌드 성공</strong>. 4개 스킵: KCFTracker, mediapipe, visual, slam (의존성·호환 문제).</p>
+    </li>
+    <li>
+      <div class="step-title">④ 빌드 오류 수정 (fork 코드)</div>
+      <p><code>yahboomcar_base_node</code>: 안 쓰는 turtlesim include 제거. <code>yahboomcar_KCFTracker</code>: OpenCV 4.2 맞춤. CMakeLists 정리.</p>
+    </li>
+    <li>
+      <div class="step-title">⑤ 불필요 자동실행 끄기</div>
+      <p>Yahboom 폰앱 <code>rosmaster_main.py</code> autostart 비활성화 — 이게 <code>/dev/myserial</code>을 잡아서 ROS 드라이버와 충돌함. <code>disable_yahboom_autostart.sh</code> 작성.</p>
+    </li>
+    <li>
+      <div class="step-title">⑥ 하드웨어 진단 스크립트</div>
+      <p><code>diagnose_robot.sh</code>: 장치·워크스페이스·선택적 ROS 토픽 확인. 매핑 전에 Phase 1 체크.</p>
+    </li>
+    <li>
+      <div class="step-title">⑦ Native Humble로 전환 (결정적 전환점)</div>
+      <p>Docker에서 라이다·SLAM 실행 시 GLIBC 오류 발견 → <code>native_ros_setup.bash</code> + <code>start_mapping.sh</code>(gmapping) 작성. 센서·매핑은 호스트 Humble만 사용.</p>
+    </li>
+    <li>
+      <div class="step-title">⑧ Orbbec 카메라 연동</div>
+      <p><code>start_camera.sh</code>, <code>diagnose_camera.sh</code>. <code>astra_camera astro_pro_plus.launch.xml</code>로 RGB ~25–30Hz, depth, point cloud 확인.</p>
+    </li>
+    <li>
+      <div class="step-title">⑨ RTAB-Map 융합 SLAM</div>
+      <p>카메라+라이다 RTAB-Map: <code>start_rtabmap_mapping.sh</code>, <code>diagnose_rtabmap.sh</code>. 맵 DB: <code>~/.ros/rtabmap.db</code>.</p>
+    </li>
+    <li>
+      <div class="step-title">⑩ 실시간 맵 화면 + 바탕화면 아이콘</div>
+      <p><code>view_rtabmap_viz.sh</code>, <code>scripts/desktop/*.desktop</code> 4개, <code>install_desktop_shortcuts.sh</code>. R2 모니터에서 더블클릭으로 매핑·보기·중지.</p>
+    </li>
+    <li>
+      <div class="step-title">⑪ 중지·비상 정리 강화</div>
+      <p><code>stop_robot_stack.sh</code> 개선 (rtabmap_viz, IMU, EKF까지 종료). <code>emergency_stop.sh</code> 추가. 좀비 프로세스·연속 비프음 대응.</p>
+    </li>
+    <li>
+      <div class="step-title">⑫ 실제 매핑 테스트 성공</div>
+      <p>배터리 충전 중 부팅, 비프음 없음. 바탕화면에서 매핑 시작 → 실시간 맵 화면 확인. 중지 아이콘으로 종료 (카메라 LED 대기 상태 확인).</p>
+    </li>
+  </ol>
+</section>
+
+<!-- 6. PROBLEMS -->
+<section id="problems">
+  <h2>6. 실제로 만난 문제와 해결</h2>
+
+  <p>SLAM이 "한 번에" 된 것이 아닙니다. 아래 문제들을 하나씩 해결했습니다.</p>
+
+  <table>
+    <tr>
+      <th>#</th>
+      <th>증상 / 문제</th>
+      <th>원인</th>
+      <th>해결</th>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Google Drive Code를 fork에 어떻게 넣지? upstream에 commit하고 싶지 않음</td>
+      <td>Yahboom 구조상 코드가 Drive와 GitHub가 분리됨</td>
+      <td><code>code/yahboomcar_ros2_ws/src/</code>에 복사 후 <strong>내 fork에만</strong> commit. <code>DEVELOPMENT.md</code>에 워크플로 문서화</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Docker <code>colcon build</code> 실패</td>
+      <td>turtlesim 미사용 include, OpenCV 버전 불일치, 선택 패키지 의존성</td>
+      <td>base_node CMake 수정, OpenCV 4.2, 4개 패키지 <code>--packages-skip</code></td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Docker 안에서 라이다·gmapping 실행 불가</td>
+      <td><code>library_ws</code>가 호스트 GLIBC 2.35용으로 빌드됨. Foxy 컨테이너 GLIBC가 다름</td>
+      <td><strong>센서·SLAM은 Native Humble</strong>로 실행. Docker는 코드 빌드용으로만</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td><code>/dev/myserial</code> 열기 실패, 매핑 시작 안 됨</td>
+      <td>Yahboom 폰앱 <code>rosmaster_main.py</code>가 시리얼 독점</td>
+      <td>autostart 비활성화 + 매핑 전 <code>stop_robot_stack.sh</code>로 프로세스 종료</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Ctrl+C 후에도 모터·노드가 살아 있음, 비프음 계속</td>
+      <td>launch가 여러 자식 프로세스 생성, 정리 안 됨</td>
+      <td><code>stop_robot_stack.sh</code>: pkill 목록 확장 + <code>Rosmaster_Lib</code>로 <code>set_beep(0)</code>, <code>reset_car_state()</code></td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>배터리 방전/보드 미응답 시 <code>battery=0.0, version=-1</code>, 비프음 안 꺼짐</td>
+      <td>모터보드 하드웨어 알람. 소프트웨어만으로 한계</td>
+      <td>배터리 충전 + 메인 스위치 OFF/ON. 부팅 중 비프음 = 하드웨어 알람</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>SSH로 매핑해도 R2 모니터에 맵 안 보임</td>
+      <td>SSH 세션에 <code>DISPLAY</code> 없음</td>
+      <td><code>view_rtabmap_viz.sh</code> + 바탕화면 아이콘 (<code>DISPLAY=:0</code>)</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td><code>diagnose_rtabmap.sh</code>가 중간에 죽음</td>
+      <td><code>set -e</code> + <code>timeout ros2 topic hz</code> exit code 124</td>
+      <td>timeout 실패를 <code>|| true</code>로 처리, echo 폴백</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>중지 아이콘 눌렀는데 카메라 LED 빠르게 깜빡임</td>
+      <td><code>rtabmap_viz</code> 프로세스가 남음. 중지 스크립트가 launch 파일만 kill</td>
+      <td><code>pkill rtabmap_viz</code> 등 추가. 맵 보기 창도 함께 닫기</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>중지 후 카메라 LED 연한 빨강·녹색</td>
+      <td>USB 전원은 남고 소프트웨어만 종료된 <strong>idle 상태</strong>. 드라이버 일시 꼬임 시 <code>/dev/video</code> 사라짐</td>
+      <td>정상 대기로 판단. 카메라 30Hz 테스트 OK. 필요 시 <code>modprobe uvcvideo</code> 또는 전원 OFF</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>집 WiFi SSH 끊김</td>
+      <td>로봇이 ROSMASTER 핫스팟에 자동 연결</td>
+      <td>NetworkManager에서 핫스팟 autoconnect off, 집 WiFi 우선순위 up</td>
+    </tr>
+  </table>
+</section>
+
+<!-- 7. DOCKER VS NATIVE -->
+<section id="docker-vs-native">
+  <h2>7. 핵심 결정: Docker vs Native Humble</h2>
+
+  <p>이 프로젝트에서 가장 중요한 기술적 깨달음입니다.</p>
+
+  <table>
+    <tr><th>용도</th><th>환경</th><th>이유</th></tr>
+    <tr>
+      <td>코드 빌드 (<code>colcon build</code>)</td>
+      <td>Docker Foxy 4.0.7R2</td>
+      <td>Yahboom이 이 이미지 기준으로 패키지 제공. PC/로버 동일 환경</td>
+    </tr>
+    <tr>
+      <td>라이다, 카메라, SLAM, 매핑</td>
+      <td><strong>Native Humble</strong> (호스트)</td>
+      <td><code>library_ws</code> 바이너리가 호스트용. Docker에서 실행 시 GLIBC 오류</td>
+    </tr>
+  </table>
+
+  <p><code>native_ros_setup.bash</code>가 하는 일:</p>
+  <pre><code>source /opt/ros/humble/setup.bash
+source ~/yahboomcar_ros2_ws/software/library_ws/install/setup.bash
+source ~/yahboomcar_ros2_ws/yahboomcar_ws/install/setup.bash
+export ROS_DOMAIN_ID=28
+export ROBOT_TYPE=r2
+export RPLIDAR_TYPE=4ROS
+export CAMERA_TYPE=astraplus</code></pre>
+
+  <div class="box box-ok">
+    <strong>교훈</strong>
+    "Docker로 다 하면 깔끔하겠지?" → R2에서는 <strong>센서 드라이버가 이미 호스트용으로 빌드</strong>되어 있어서 안 됨. 빌드와 런타임을 분리한 것이 정답이었습니다.
+  </div>
+</section>
+
+<!-- 8. SLAM -->
+<section id="slam">
+  <h2>8. SLAM 매핑이 동작하게 된 방법</h2>
+
+  <h3>방식 A: 라이다만 (gmapping)</h3>
+  <p>가볍고 빠른 테스트용.</p>
+  <pre><code>bash ~/ROSMASTER-R2-fork/scripts/start_mapping.sh
+# 내부: ros2 launch yahboomcar_nav map_gmapping_4ros_launch.py</code></pre>
+
+  <h3>방식 B: 카메라 + 라이다 융합 (RTAB-Map) — 실제로 성공한 방식</h3>
+  <p>더 풍부한 지도. 집 실내 SLAM에 적합.</p>
+  <ol>
+    <li><code>stop_robot_stack.sh</code> — 기존 프로세스·시리얼 점유 해제</li>
+    <li>Orbbec 카메라 launch — <code>/camera/color/image_raw</code> 토픽 대기 (~25초)</li>
+    <li><code>map_rtabmap_launch.py</code> — RGB-D + <code>/scan</code> 융합</li>
+    <li>로봇을 <strong>천천히</strong> 움직이며 지도 생성</li>
+    <li>별도 창에서 <code>view_rtabmap_viz.sh</code> — 실시간 2D/3D 맵 확인</li>
+  </ol>
+
+  <p>저장 위치:</p>
+  <ul>
+    <li>RTAB-Map DB: <code>~/.ros/rtabmap.db</code> (약 2.9MB — 테스트 매핑 기준)</li>
+    <li>보내기용 <code>~/maps/</code>: 아직 yaml/pgm보내기 전 (다음 단계)</li>
+  </ul>
+
+  <h3>정상 동작 시 확인되는 ROS 토픽 (예시)</h3>
+  <ul>
+    <li><code>/scan</code> — 라이다, ~10Hz</li>
+    <li><code>/camera/color/image_raw</code> — RGB, ~25–30Hz</li>
+    <li><code>/camera/depth/image_raw</code>, <code>/camera/depth/points</code></li>
+    <li><code>/imu/data_raw</code>, <code>/odom_raw</code>, <code>/vel_raw</code></li>
+  </ul>
+</section>
+
+<!-- 9. DESKTOP -->
+<section id="desktop">
+  <h2>9. 바탕화면 아이콘과 실시간 맵 보기</h2>
+
+  <p>R2 본체 모니터(로컬 디스플레이 <code>:0</code>)에서 더블클릭으로 실행합니다. SSH만으로는 GUI가 안 뜹니다.</p>
+
+  <table>
+    <tr><th>아이콘 이름</th><th>하는 일</th></tr>
+    <tr><td>R2 매핑 시작 (카메라+라이다)</td><td><code>start_rtabmap_mapping.sh</code></td></tr>
+    <tr><td>R2 맵 실시간 보기</td><td><code>view_rtabmap_viz.sh</code> → RTAB-Map viz 창</td></tr>
+    <tr><td>R2 매핑 중지</td><td><code>stop_robot_stack.sh</code></td></tr>
+    <tr><td>R2 라이다만 매핑 (gmapping)</td><td><code>start_mapping.sh</code></td></tr>
+  </table>
+
+  <p>설치 방법 (로버에서, git pull 후):</p>
+  <pre><code>bash ~/ROSMASTER-R2-fork/scripts/install_desktop_shortcuts.sh</code></pre>
+
+  <h3>매핑 시작 → 중지 올바른 순서</h3>
+  <ol>
+    <li><strong>R2 매핑 시작</strong> 더블클릭</li>
+    <li><strong>R2 맵 실시간 보기</strong> 더블클릭 (별도 터미널/창)</li>
+    <li>로봇 천천히 이동하며 맵 확인</li>
+    <li><strong>R2 매핑 중지</strong> 더블클릭 (또는 매핑 터미널에서 Ctrl+C)</li>
+    <li>맵 보기 창도 닫기</li>
+  </ol>
+
+  <div class="box box-warn">
+    <strong>카메라 LED 참고</strong>
+    <ul style="margin:0.5rem 0 0;">
+      <li>전원 OFF → LED 꺼짐</li>
+      <li>전원 ON, 앱 안 씀 → 연한 빨강·녹색 (idle, 정상)</li>
+      <li>매핑/카메라 실행 중 → 밝고 빠른 깜빡임</li>
+    </ul>
+  </div>
+
+  <p>예전 아이콘 <code>R2_Mapping.desktop</code>, <code>R2_RViz.desktop</code>은 <code>~/yahboomcar_ros2_ws</code> 경로를 가리킵니다. 새 아이콘 4개를 사용하세요.</p>
+</section>
+
+<!-- 10. SCRIPTS -->
+<section id="scripts">
+  <h2>10. 만든 스크립트 전체 목록</h2>
+
+  <table>
+    <tr><th>스크립트</th><th>용도</th></tr>
+    <tr><td><code>download_code.sh</code></td><td>Google Drive 5.Code 다운로드 → src 설치</td></tr>
+    <tr><td><code>setup_rover.sh</code></td><td>로버 최초 1회 설정 (권한, 폴더, large file 복원)</td></tr>
+    <tr><td><code>update_code.sh</code></td><td>로버에서 git pull</td></tr>
+    <tr><td><code>run_docker.sh</code></td><td>대화형 Docker 컨테이너</td></tr>
+    <tr><td><code>run_docker_build.sh</code></td><td>비대화형 colcon build</td></tr>
+    <tr><td><code>run_docker_env.sh</code></td><td>공통 경로·이미지·장치 변수</td></tr>
+    <tr><td><code>native_ros_setup.bash</code></td><td>Humble + library_ws + yahboomcar_ws 환경</td></tr>
+    <tr><td><code>diagnose_robot.sh</code></td><td>하드웨어·워크스페이스 진단 (--ros 옵션)</td></tr>
+    <tr><td><code>diagnose_camera.sh</code></td><td>Orbbec 카메라 토픽·Hz 검사</td></tr>
+    <tr><td><code>diagnose_rtabmap.sh</code></td><td>RTAB-Map 융합 스택 검사</td></tr>
+    <tr><td><code>start_camera.sh</code></td><td>카메라만 실행</td></tr>
+    <tr><td><code>start_mapping.sh</code></td><td>라이다 gmapping</td></tr>
+    <tr><td><code>start_rtabmap_mapping.sh</code></td><td>카메라+라이다 RTAB-Map 매핑</td></tr>
+    <tr><td><code>view_rtabmap_viz.sh</code></td><td>R2 모니터 실시간 맵</td></tr>
+    <tr><td><code>stop_robot_stack.sh</code></td><td>노드 종료 + 비프음 끄기</td></tr>
+    <tr><td><code>emergency_stop.sh</code></td><td>강제 kill + 보드 리셋 시도</td></tr>
+    <tr><td><code>disable/enable_yahboom_autostart.sh</code></td><td>폰앱 autostart 토글</td></tr>
+    <tr><td><code>install_desktop_shortcuts.sh</code></td><td>바탕화면 .desktop 설치</td></tr>
+    <tr><td><code>split/restore_large_files.sh</code></td><td>ORBvoc.txt 등 대용량 git 분할</td></tr>
+  </table>
+</section>
+
+<!-- 11. CURRENT -->
+<section id="current">
+  <h2>11. 지금 상태와 앞으로 할 일</h2>
+
+  <div class="box box-ok">
+    <strong>달성한 것</strong>
+    <ul style="margin:0.5rem 0 0;">
+      <li>Git fork로 코드·스크립트 버전 관리</li>
+      <li>PC → push → 로버 pull 워크플로</li>
+      <li>Native Humble에서 4ROS 라이다 + Orbbec 카메라 + RTAB-Map 매핑 동작</li>
+      <li>R2 바탕화면에서 매핑·실시간 맵·중지</li>
+      <li>진단·중지·비상 스크립트로 운영 가능</li>
+    </ul>
+  </div>
+
+  <h3>아직 안 한 것 (다음 단계)</h3>
+  <ul>
+    <li>RTAB-Map 지도를 <code>~/maps/</code>에 yaml/pgm으로 <strong>보내기</strong> (<code>rtabmap-export</code>)</li>
+    <li>보낸 지도로 <strong>내비게이션</strong> (amcl + nav2 또는 Yahboom nav launch)</li>
+    <li>fork의 <code>library_ws</code> 의존 제거 — Humble에서 전체 빌드</li>
+    <li>스킵된 4개 패키지 빌드 (필요 시)</li>
+    <li><code>~/yahboomcar_ros2_ws</code> 단계적 정리 (fork가 완전히 대체한 후)</li>
+    <li><code>/home/jetson/Rosmaster</code> 폰앱 폴더 삭제 검토 (나중에)</li>
+  </ul>
+</section>
+
+<!-- 12. COMMANDS -->
+<section id="commands">
+  <h2>12. 자주 쓰는 명령어 치트시트</h2>
+
+  <h3>PC에서</h3>
+  <pre><code>cd ~/github/ROSMASTER-R2-fork
+git add . && git commit -m "메시지" && git push origin main
+ssh rover</code></pre>
+
+  <h3>로버에서 — 업데이트</h3>
+  <pre><code>cd ~/ROSMASTER-R2-fork
+bash scripts/update_code.sh</code></pre>
+
+  <h3>로버에서 — 매핑 (터미널)</h3>
+  <pre><code># RTAB-Map (카메라+라이다)
+bash ~/ROSMASTER-R2-fork/scripts/start_rtabmap_mapping.sh
+
+# 다른 터미널 또는 바탕화면 아이콘 — 실시간 맵
+bash ~/ROSMASTER-R2-fork/scripts/view_rtabmap_viz.sh
+
+# 중지
+bash ~/ROSMASTER-R2-fork/scripts/stop_robot_stack.sh</code></pre>
+
+  <h3>로버에서 — 진단</h3>
+  <pre><code>bash ~/ROSMASTER-R2-fork/scripts/diagnose_robot.sh
+bash ~/ROSMASTER-R2-fork/scripts/diagnose_robot.sh --ros
+bash ~/ROSMASTER-R2-fork/scripts/diagnose_camera.sh
+bash ~/ROSMASTER-R2-fork/scripts/diagnose_rtabmap.sh</code></pre>
+
+  <h3>로버에서 — 비상</h3>
+  <pre><code>bash ~/ROSMASTER-R2-fork/scripts/emergency_stop.sh</code></pre>
+
+  <h3>장치 확인</h3>
+  <pre><code>ls -la /dev/myserial /dev/ydlidar /dev/video*
+lsusb | grep -i orbbec
+export ROS_DOMAIN_ID=28
+ros2 topic list
+ros2 topic hz /scan</code></pre>
+</section>
+
+<footer>
+  <p>이 문서는 ROSMASTER R2 자가 개발 프로젝트의 대화·작업 기록을 바탕으로 작성되었습니다.</p>
+  <p>저장 위치: <code>/home/abraxas4/R2_프로젝트_일지.html</code></p>
+</footer>
+
+</div>
+</body>
+</html>
