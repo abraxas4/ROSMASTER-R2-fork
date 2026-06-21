@@ -9,7 +9,7 @@ source "$SCRIPT_DIR/run_docker_env.sh"
 
 RUN_ROS=false
 RUN_MOTION=false
-ROS_WAIT_SEC=12
+ROS_WAIT_SEC=18
 
 usage() {
   cat <<'EOF'
@@ -130,6 +130,13 @@ if pgrep -f '/home/jetson/Rosmaster/rosmaster/rosmaster_main.py' >/dev/null 2>&1
   sleep 1
 fi
 
+echo "Stopping stale bringup/lidar processes from earlier runs..."
+pkill -f 'yahboomcar_bringup_R2_launch.py' 2>/dev/null || true
+pkill -f 'ydlidar_raw_launch.py' 2>/dev/null || true
+pkill -f 'Ackman_driver_R2' 2>/dev/null || true
+pkill -f 'ydlidar_ros2_driver_node' 2>/dev/null || true
+sleep 2
+
 echo ""
 echo "--- Phase 2: ROS bringup + sensor topics (native Humble) ---"
 echo "Note: library_ws lidar/SLAM binaries require host ROS (not Foxy Docker)."
@@ -171,6 +178,11 @@ DIAG_OUTPUT="$(
     fi
   }
 
+  check_hz /scan 3
+  check_hz /imu/data_raw 10
+  check_hz /vel_raw 10
+  check_hz /odom_raw 5
+
   for topic in /scan /imu/data_raw /vel_raw /odom_raw; do
     if ros2 topic list 2>/dev/null | grep -qx "$topic"; then
       echo "TOPIC_OK $topic"
@@ -178,11 +190,6 @@ DIAG_OUTPUT="$(
       echo "TOPIC_MISSING $topic"
     fi
   done
-
-  check_hz /scan 3
-  check_hz /imu/data_raw 10
-  check_hz /vel_raw 10
-  check_hz /odom_raw 5
 
   if [[ "${RUN_MOTION}" == "true" ]]; then
     echo "MOTION_TEST start"
