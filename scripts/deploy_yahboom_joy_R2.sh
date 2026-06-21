@@ -15,11 +15,12 @@ scp "${JOY_SRC}" "${ROVER}:${REMOTE_INSTALL}"
 
 ssh "${ROVER}" bash -s <<'REMOTE'
 set -euo pipefail
+export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-28}"
 pkill -f 'yahboom_joy_R2' 2>/dev/null || true
 sleep 1
 source /opt/ros/humble/setup.bash
 source ~/yahboomcar_ros2_ws/yahboomcar_ws/install/setup.bash
-nohup ros2 run yahboomcar_ctrl yahboom_joy_R2 >/tmp/yahboom_joy_R2.log 2>&1 &
+nohup env ROS_DOMAIN_ID="${ROS_DOMAIN_ID}" ros2 run yahboomcar_ctrl yahboom_joy_R2 >/tmp/yahboom_joy_R2.log 2>&1 &
 sleep 2
 grep -n 'axes\[0\]' ~/yahboomcar_ros2_ws/yahboomcar_ws/install/yahboomcar_ctrl/lib/python3.10/site-packages/yahboomcar_ctrl/yahboom_joy_R2.py | head -1
 ps aux | grep -E 'joy_node|yahboom_joy_R2' | grep -v grep
