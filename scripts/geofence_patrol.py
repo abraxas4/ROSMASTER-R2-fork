@@ -174,7 +174,9 @@ def main() -> int:
     rclpy.init()
     monitor = GeofenceMonitor(geofence)
     navigator = BasicNavigator()
-    navigator.waitUntilNav2Active()
+    print('Waiting for Nav2 + AMCL to become active...')
+    navigator.waitUntilNav2Active(navigator='bt_navigator', localizer='amcl')
+    print('Nav2 ready — starting patrol.')
 
     try:
         while rclpy.ok():

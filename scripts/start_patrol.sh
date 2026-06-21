@@ -89,14 +89,43 @@ if [[ ! -f "$MAP_YAML" ]]; then
   exit 1
 fi
 
+wait_for_lifecycle_active() {
+  local node="$1"
+  local timeout="${2:-90}"
+  local elapsed=0
+  while (( elapsed < timeout )); do
+    local state
+    state="$(ros2 lifecycle get "${node}" 2>/dev/null | awk '{print $1}')"
+    if [[ "${state}" == "active" ]]; then
+      echo "  ${node}: active"
+      return 0
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+  echo "ERROR: ${node} not active after ${timeout}s (state=${state:-unknown})"
+  return 1
+}
+
 echo "[3/4] Nav2 (${MAP_YAML})..."
 ros2 launch nav2_bringup bringup_launch.py \
   map:="${MAP_YAML}" \
   params_file:="${NAV_PARAMS}" \
   use_sim_time:=false > /tmp/patrol_nav2.log 2>&1 &
 NAV_PID=$!
-echo "Waiting for Nav2 (up to 90s)..."
-sleep 30
+echo "Waiting for map_server + AMCL + Nav2 (up to 120s)..."
+if ! wait_for_lifecycle_active /map_server 120; then
+  tail -20 /tmp/patrol_nav2.log 2>/dev/null || true
+  exit 1
+fi
+if ! wait_for_lifecycle_active /amcl 60; then
+  tail -20 /tmp/patrol_nav2.log 2>/dev/null || true
+  exit 1
+fi
+if ! wait_for_lifecycle_active /bt_navigator 60; then
+  tail -20 /tmp/patrol_nav2.log 2>/dev/null || true
+  exit 1
+fi
 
 echo "[4/4] Geofence patrol loop..."
 echo "  - Geofence: mapped area minus margin (see ~/maps/geofence/)"
