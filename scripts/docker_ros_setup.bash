@@ -13,3 +13,6 @@ if [[ -f /root/yahboomcar_ros2_ws/install/setup.bash ]]; then
 fi
 
 export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-28}"
+export ROBOT_TYPE="${ROBOT_TYPE:-r2}"
+export RPLIDAR_TYPE="${RPLIDAR_TYPE:-4ROS}"
+export CAMERA_TYPE="${CAMERA_TYPE:-astraplus}"
