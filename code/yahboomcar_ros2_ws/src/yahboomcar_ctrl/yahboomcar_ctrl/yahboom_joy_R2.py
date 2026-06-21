@@ -38,9 +38,9 @@ class JoyTeleop(Node):
 		self.sub_Joy = self.create_subscription(Joy,'joy', self.buttonCallback,1)
 		
 		#declare parameter and get the value
-		self.declare_parameter('xspeed_limit',1.0)
-		self.declare_parameter('yspeed_limit',5.0)
-		self.declare_parameter('angular_speed_limit',5.0)
+		self.declare_parameter('xspeed_limit', 0.2)
+		self.declare_parameter('yspeed_limit', 1.0)
+		self.declare_parameter('angular_speed_limit', 5.0)
 		self.xspeed_limit = self.get_parameter('xspeed_limit').get_parameter_value().double_value
 		self.yspeed_limit = self.get_parameter('yspeed_limit').get_parameter_value().double_value
 		self.angular_speed_limit = self.get_parameter('angular_speed_limit').get_parameter_value().double_value
@@ -80,20 +80,16 @@ class JoyTeleop(Node):
 			elif self.angular_Gear == 1.0 / 4: self.angular_Gear = 1.0 / 2
 			elif self.angular_Gear == 1.0 / 2: self.angular_Gear = 3.0 / 4
 			elif self.angular_Gear == 3.0 / 4: self.angular_Gear = 1.0
+		# Left stick only: axes[1]=forward/back, axes[0]=Ackermann steer
 		xlinear_speed = self.filter_data(joy_data.axes[1]) * self.xspeed_limit * self.linear_Gear
-        #ylinear_speed = self.filter_data(joy_data.axes[2]) * self.yspeed_limit * self.linear_Gear
-		ylinear_speed = self.filter_data(joy_data.axes[2]) * self.yspeed_limit * self.linear_Gear
-		angular_speed = self.filter_data(joy_data.axes[2]) * self.angular_speed_limit * self.angular_Gear
+		ylinear_speed = self.filter_data(joy_data.axes[0]) * self.yspeed_limit * self.linear_Gear
 		if xlinear_speed > self.xspeed_limit: xlinear_speed = self.xspeed_limit
 		elif xlinear_speed < -self.xspeed_limit: xlinear_speed = -self.xspeed_limit
 		if ylinear_speed > self.yspeed_limit: ylinear_speed = self.yspeed_limit
 		elif ylinear_speed < -self.yspeed_limit: ylinear_speed = -self.yspeed_limit
-		if angular_speed > self.angular_speed_limit: angular_speed = self.angular_speed_limit
-		elif angular_speed < -self.angular_speed_limit: angular_speed = -self.angular_speed_limit
 		twist = Twist()
 		twist.linear.x = xlinear_speed
 		twist.linear.y = ylinear_speed
-		#twist.angular.z = angular_speed
 		if self.Joy_active == True:
 			 for i in range(3): self.pub_cmdVel.publish(twist)
         
