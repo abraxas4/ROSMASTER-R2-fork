@@ -14,7 +14,7 @@ fail() { echo "[FAIL] $*"; }
 
 echo "=== Orbbec camera ROS diagnosis ==="
 
-for dev in /dev/AstraPlus /dev/AstraPlus_rgb /dev/video0; do
+for dev in /dev/AstraPlus /dev/AstraPlus_rgb; do
   if [[ -e "$dev" ]]; then
     pass "device: $dev"
   else
@@ -22,6 +22,11 @@ for dev in /dev/AstraPlus /dev/AstraPlus_rgb /dev/video0; do
     exit 1
   fi
 done
+if [[ -e /dev/video0 ]]; then
+  pass "device: /dev/video0 (UVC idle)"
+else
+  echo "[INFO] /dev/video0 not listed (normal while astra_camera holds the UVC interface)"
+fi
 
 pkill -f astra_camera_node 2>/dev/null || true
 sleep 1
