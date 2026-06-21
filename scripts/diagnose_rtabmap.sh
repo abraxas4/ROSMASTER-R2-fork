@@ -23,7 +23,15 @@ source "$SCRIPT_DIR/native_ros_setup.bash"
 
 ros2 launch astra_camera astro_pro_plus.launch.xml >/tmp/r2_rtabmap_cam.log 2>&1 &
 CP=$!
-sleep 10
+
+cam_wait=0
+while (( cam_wait < 25 )); do
+  if ros2 topic list 2>/dev/null | grep -qx /camera/color/image_raw; then
+    break
+  fi
+  sleep 1
+  cam_wait=$((cam_wait + 1))
+done
 
 ros2 launch yahboomcar_nav map_rtabmap_launch.py >/tmp/r2_rtabmap_map.log 2>&1 &
 MP=$!
