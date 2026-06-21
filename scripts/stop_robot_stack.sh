@@ -29,9 +29,15 @@ pkill -f 'rtabmap_sync.*/rgbd_sync' 2>/dev/null || true
 
 # Stop motors and silence board beeper.
 python3 - <<'PY' 2>/dev/null || true
+import time
 from Rosmaster_Lib import Rosmaster
 car = Rosmaster()
+time.sleep(0.2)
+for _ in range(5):
+    car.set_beep(0)
 car.set_car_motion(0, 0, 0)
+car.reset_car_state()
+time.sleep(0.1)
 car.set_beep(0)
 PY
 
