@@ -1,8 +1,8 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=R2 매핑 이어서하기
-Comment=Continue SLAM on the active map (does not erase previous work)
+Name=R2 매핑 이어서 (카메라+라이다)
+Comment=Continue RTAB-Map on active map — does NOT erase previous work
 Exec=gnome-terminal --title=R2 Map Continue -- bash -c "bash /home/jetson/ROSMASTER-R2-fork/scripts/start_rtabmap_continue.sh; exec bash"
 Icon=media-playlist-repeat
 Terminal=false

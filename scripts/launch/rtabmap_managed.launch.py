@@ -5,7 +5,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import AndCondition, IfCondition, UnlessCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
@@ -18,7 +18,6 @@ def generate_launch_description():
 
     use_sim_time = LaunchConfiguration('use_sim_time')
     qos = LaunchConfiguration('qos')
-    localization = LaunchConfiguration('localization')
     database_path = LaunchConfiguration('database_path')
     delete_db = LaunchConfiguration('delete_db')
 
@@ -68,7 +67,7 @@ def generate_launch_description():
     )
 
     slam_fresh_node = Node(
-        condition=AndCondition(IfCondition(delete_db), UnlessCondition(localization)),
+        condition=IfCondition(delete_db),
         package='rtabmap_slam',
         executable='rtabmap',
         output='screen',
@@ -78,7 +77,7 @@ def generate_launch_description():
     )
 
     slam_continue_node = Node(
-        condition=AndCondition(UnlessCondition(delete_db), UnlessCondition(localization)),
+        condition=UnlessCondition(delete_db),
         package='rtabmap_slam',
         executable='rtabmap',
         output='screen',
@@ -86,25 +85,9 @@ def generate_launch_description():
         remappings=remappings,
     )
 
-    localization_node = Node(
-        condition=IfCondition(localization),
-        package='rtabmap_slam',
-        executable='rtabmap',
-        output='screen',
-        parameters=[
-            parameters,
-            {
-                'Mem/IncrementalMemory': 'False',
-                'Mem/InitWMWithAllNodes': 'True',
-            },
-        ],
-        remappings=remappings,
-    )
-
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         DeclareLaunchArgument('qos', default_value='2'),
-        DeclareLaunchArgument('localization', default_value='false'),
         DeclareLaunchArgument(
             'database_path',
             default_value=os.path.expanduser('~/.ros/rtabmap.db'),
@@ -118,5 +101,4 @@ def generate_launch_description():
         rgbd_sync_node,
         slam_fresh_node,
         slam_continue_node,
-        localization_node,
     ])

@@ -1,8 +1,8 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=R2 매핑 새로하기
-Comment=New map auto-named by WiFi location (lat/lon). Rename later to 집/회사/...
+Name=R2 매핑 새로 (카메라+라이다)
+Comment=New RTAB-Map auto-named by WiFi lat/lon. Rename later: rename_map.sh
 Exec=gnome-terminal --title=R2 Map New -- bash -c "bash /home/jetson/ROSMASTER-R2-fork/scripts/start_rtabmap_new.sh; exec bash"
 Icon=document-new
 Terminal=false

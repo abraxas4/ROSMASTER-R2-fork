@@ -13,7 +13,7 @@ if [[ -z "${XAUTHORITY:-}" && -f /run/user/1000/gdm/Xauthority ]]; then
 fi
 
 echo "=== RTAB-Map viz on robot display (${DISPLAY}) ==="
-echo "Run this while start_rtabmap_mapping.sh is active in another terminal."
+echo "Run this while mapping (이어서/새로) is active in another terminal."
 
 set +u
 # shellcheck source=native_ros_setup.bash
