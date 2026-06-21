@@ -19,6 +19,7 @@ if pgrep -f '/home/jetson/Rosmaster/rosmaster/rosmaster_main.py' >/dev/null 2>&1
   sleep 1
 fi
 
+set +u
 # shellcheck source=native_ros_setup.bash
 source "$SCRIPT_DIR/native_ros_setup.bash"
 

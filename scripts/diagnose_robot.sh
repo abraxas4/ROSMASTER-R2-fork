@@ -141,12 +141,14 @@ ros_pass() { echo "[PASS] $*"; ROS_PASS=$((ROS_PASS + 1)); }
 ros_fail() { echo "[FAIL] $*"; ROS_FAIL=$((ROS_FAIL + 1)); }
 
 set +e
+set +u
 DIAG_OUTPUT="$(
   export LIBRARY_WS_HOST NATIVE_WS_HOST RUN_MOTION ROS_WAIT_SEC
   export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-28}"
   export ROBOT_TYPE="${ROBOT_TYPE:-r2}"
   export RPLIDAR_TYPE="${RPLIDAR_TYPE:-4ROS}"
   export CAMERA_TYPE="${CAMERA_TYPE:-astraplus}"
+  set +u
   # shellcheck source=native_ros_setup.bash
   source "$SCRIPT_DIR/native_ros_setup.bash"
 
@@ -196,6 +198,7 @@ DIAG_OUTPUT="$(
   wait "$BRINGUP_PID" "$LIDAR_PID" 2>/dev/null || true
 )"
 NATIVE_RC=$?
+set -u
 set -e
 
 echo "$DIAG_OUTPUT"

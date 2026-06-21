@@ -2,6 +2,7 @@
 # Native ROS2 Humble environment for sensor checks and mapping.
 # library_ws binaries are built for the Jetson host (GLIBC 2.35), not Foxy Docker.
 
+set +u
 source /opt/ros/humble/setup.bash
 
 if [[ -f "${LIBRARY_WS_HOST}/install/setup.bash" ]]; then
