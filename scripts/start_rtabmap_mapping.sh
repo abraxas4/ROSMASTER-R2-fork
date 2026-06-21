@@ -65,5 +65,8 @@ echo "Camera ready: /camera/color/image_raw"
 echo "[2/2] Starting RTAB-Map fusion SLAM..."
 echo "Move the robot slowly. Stop with Ctrl+C."
 echo ""
+echo "GUI on R2 monitor (separate SSH session):"
+echo "  DISPLAY=:0 bash $SCRIPT_DIR/view_rtabmap_viz.sh"
+echo ""
 
 ros2 launch yahboomcar_nav map_rtabmap_launch.py
