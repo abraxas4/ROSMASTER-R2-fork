@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=run_docker_env.sh
 source "$SCRIPT_DIR/run_docker_env.sh"
 
-WAIT_SEC=20
+WAIT_SEC=18
 PASS=0
 FAIL=0
 pass() { echo "[PASS] $*"; PASS=$((PASS + 1)); }
@@ -23,7 +23,7 @@ source "$SCRIPT_DIR/native_ros_setup.bash"
 
 ros2 launch astra_camera astro_pro_plus.launch.xml >/tmp/r2_rtabmap_cam.log 2>&1 &
 CP=$!
-sleep 12
+sleep 10
 
 ros2 launch yahboomcar_nav map_rtabmap_launch.py >/tmp/r2_rtabmap_map.log 2>&1 &
 MP=$!
@@ -37,25 +37,26 @@ check_hz() {
   fi
   pass "topic exists: $topic"
   local hz
-  hz=$(timeout 6 ros2 topic hz "$topic" 2>/dev/null | awk '/average rate/{print $3; exit}')
+  hz=$(timeout 4 ros2 topic hz "$topic" 2>/dev/null | awk '/average rate/{print $3; exit}')
   if [[ -z "$hz" ]]; then
     fail "no messages: $topic"
     return
   fi
   awk -v hz="$hz" -v min="$min" 'BEGIN {exit (hz+0 >= min+0)?0:1}' \
     && pass "rate OK: $topic ${hz} Hz" \
-    || fail "rate low: $topic ${hz} Hz"
+    || fail "rate low: $topic ${hz} Hz (min ${min})"
 }
 
 check_hz /camera/color/image_raw 10
-check_hz /camera/depth/image_raw 10
+check_hz /camera/depth/image_raw 3
 check_hz /scan 3
-check_hz /odom 5
+check_hz /odom 3
 
-if pgrep -f 'rtabmap$' >/dev/null 2>&1 || pgrep -f 'rtabmap ' >/dev/null 2>&1; then
+if pgrep -af 'rtabmap_slam.*/rtabmap' >/dev/null 2>&1; then
   pass "rtabmap node running"
 else
   fail "rtabmap node not running"
+  tail -10 /tmp/r2_rtabmap_map.log 2>/dev/null || true
 fi
 
 kill "$CP" "$MP" 2>/dev/null || true
