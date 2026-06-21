@@ -138,7 +138,8 @@ class JoyTeleop(Node):
 		for i in range(3): self.pub_cmdVel.publish(twist)
         
 	def filter_data(self, value):
-		if abs(value) < 0.2: value = 0
+		# R2 USB gamepad often rests at ~0.35-0.45 on axes[1]; 0.2 deadzone caused creep.
+		if abs(value) < 0.45: value = 0
 		return value
 		
 	def cancel_nav(self):
