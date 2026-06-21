@@ -31,6 +31,7 @@ collect_device_args() {
         /dev/video0
         /dev/video1
         /dev/myserial
+        /dev/ydlidar
         /dev/rplidar
         /dev/input
     )
