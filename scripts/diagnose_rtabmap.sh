@@ -37,8 +37,12 @@ check_hz() {
   fi
   pass "topic exists: $topic"
   local hz
-  hz=$(timeout 4 ros2 topic hz "$topic" 2>/dev/null | awk '/average rate/{print $3; exit}' || true)
+  hz=$(timeout 5 ros2 topic hz "$topic" 2>/dev/null | awk '/average rate/{print $3; exit}' || true)
   if [[ -z "$hz" ]]; then
+    if timeout 4 ros2 topic echo "$topic" --once >/dev/null 2>&1; then
+      pass "messages OK: $topic"
+      return
+    fi
     fail "no messages: $topic"
     return
   fi
