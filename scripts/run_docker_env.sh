@@ -6,6 +6,8 @@ GIT_REPO_PATH="${GIT_REPO_PATH:-${USER_HOME}/ROSMASTER-R2-fork}"
 WORKSPACE_HOST="${GIT_REPO_PATH}/code/yahboomcar_ros2_ws"
 # Yahboom prebuilt SLAM/lidar packages (slam_gmapping, sllidar, etc.)
 LIBRARY_WS_HOST="${LIBRARY_WS_HOST:-${USER_HOME}/yahboomcar_ros2_ws/software/library_ws}"
+# Prebuilt Yahboom workspace on host (Humble); used until fork/library_ws run in Docker
+NATIVE_WS_HOST="${NATIVE_WS_HOST:-${USER_HOME}/yahboomcar_ros2_ws/yahboomcar_ws}"
 
 resolve_docker_image() {
     local preferred=(

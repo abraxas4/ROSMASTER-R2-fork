@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start 4ROS lidar SLAM mapping inside Docker (non-interactive launch).
+# Start 4ROS lidar SLAM mapping on native ROS2 Humble.
 
 set -euo pipefail
 
@@ -7,36 +7,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=run_docker_env.sh
 source "$SCRIPT_DIR/run_docker_env.sh"
 
-echo "=== R2 Mapping (4ROS) via Docker ==="
-echo "Image: ${DOCKER_IMAGE}"
-echo "Workspace: ${WORKSPACE_HOST}"
-echo "Library: ${LIBRARY_WS_HOST}"
+echo "=== R2 Mapping (4ROS) via native Humble ==="
+echo "library_ws: ${LIBRARY_WS_HOST}"
+echo "workspace:  ${NATIVE_WS_HOST}"
+echo ""
+echo "Note: library_ws (lidar + slam_gmapping) runs on host, not Foxy Docker."
 
-# Yahboom phone app holds /dev/myserial; stop it so ROS driver can use the board.
-if pgrep -f rosmaster_main.py >/dev/null 2>&1; then
+if pgrep -f '/home/jetson/Rosmaster/rosmaster/rosmaster_main.py' >/dev/null 2>&1; then
   echo "Stopping rosmaster_main.py (releases /dev/myserial)..."
-  pkill -f rosmaster_main.py || true
+  pkill -f '/home/jetson/Rosmaster/rosmaster/rosmaster_main.py' || true
   sleep 1
 fi
 
-DEVICE_ARGS=()
-while IFS= read -r dev; do
-    [[ -n "$dev" ]] && DEVICE_ARGS+=(--device="$dev")
-done < <(collect_device_args)
+# shellcheck source=native_ros_setup.bash
+source "$SCRIPT_DIR/native_ros_setup.bash"
 
-docker run --rm \
-  --net=host \
-  --env="ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-28}" \
-  --env="ROBOT_TYPE=${ROBOT_TYPE:-r2}" \
-  --env="RPLIDAR_TYPE=${RPLIDAR_TYPE:-4ROS}" \
-  --env="CAMERA_TYPE=${CAMERA_TYPE:-astraplus}" \
-  -v "${WORKSPACE_HOST}:/root/yahboomcar_ros2_ws" \
-  -v "${LIBRARY_WS_HOST}/install:/root/library_ws/install" \
-  -v "${SCRIPT_DIR}/docker_ros_setup.bash:/root/docker_ros_setup.bash:ro" \
-  -v "${USER_HOME}/maps:/root/maps" \
-  "${DEVICE_ARGS[@]}" \
-  "${DOCKER_IMAGE}" \
-  bash -lc '
-    source /root/docker_ros_setup.bash
-    ros2 launch yahboomcar_nav map_gmapping_4ros_launch.py
-  '
+ros2 launch yahboomcar_nav map_gmapping_4ros_launch.py

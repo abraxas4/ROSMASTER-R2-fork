@@ -131,15 +131,9 @@ if pgrep -f '/home/jetson/Rosmaster/rosmaster/rosmaster_main.py' >/dev/null 2>&1
 fi
 
 echo ""
-echo "--- Phase 2: ROS bringup + sensor topics (Docker) ---"
+echo "--- Phase 2: ROS bringup + sensor topics (native Humble) ---"
+echo "Note: library_ws lidar/SLAM binaries require host ROS (not Foxy Docker)."
 echo "Waiting ${ROS_WAIT_SEC}s for nodes to publish..."
-
-DEVICE_ARGS=()
-while IFS= read -r dev; do
-  [[ -n "$dev" ]] && DEVICE_ARGS+=(--device="$dev")
-done < <(collect_device_args)
-# 4ROS lidar udev symlink
-[[ -e /dev/ydlidar ]] && DEVICE_ARGS+=(--device=/dev/ydlidar)
 
 ROS_PASS=0
 ROS_FAIL=0
@@ -148,66 +142,60 @@ ros_fail() { echo "[FAIL] $*"; ROS_FAIL=$((ROS_FAIL + 1)); }
 
 set +e
 DIAG_OUTPUT="$(
-docker run --rm \
-  --net=host \
-  --env="ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-28}" \
-  --env="ROBOT_TYPE=${ROBOT_TYPE:-r2}" \
-  --env="RPLIDAR_TYPE=${RPLIDAR_TYPE:-4ROS}" \
-  --env="CAMERA_TYPE=${CAMERA_TYPE:-astraplus}" \
-  --env="RUN_MOTION=${RUN_MOTION}" \
-  -v "${WORKSPACE_HOST}:/root/yahboomcar_ros2_ws" \
-  -v "${LIBRARY_WS_HOST}/install:/root/library_ws/install" \
-  -v "${SCRIPT_DIR}/docker_ros_setup.bash:/root/docker_ros_setup.bash:ro" \
-  "${DEVICE_ARGS[@]}" \
-  "${DOCKER_IMAGE}" \
-  bash -lc '
-    set -e
-    source /root/docker_ros_setup.bash
+  export LIBRARY_WS_HOST NATIVE_WS_HOST RUN_MOTION ROS_WAIT_SEC
+  export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-28}"
+  export ROBOT_TYPE="${ROBOT_TYPE:-r2}"
+  export RPLIDAR_TYPE="${RPLIDAR_TYPE:-4ROS}"
+  export CAMERA_TYPE="${CAMERA_TYPE:-astraplus}"
+  # shellcheck source=native_ros_setup.bash
+  source "$SCRIPT_DIR/native_ros_setup.bash"
 
-    ros2 launch yahboomcar_bringup yahboomcar_bringup_R2_launch.py > /tmp/bringup.log 2>&1 &
-    BRINGUP_PID=$!
-    ros2 launch ydlidar_ros2_driver ydlidar_raw_launch.py > /tmp/lidar.log 2>&1 &
-    LIDAR_PID=$!
+  ros2 launch yahboomcar_bringup yahboomcar_bringup_R2_launch.py > /tmp/r2_diag_bringup.log 2>&1 &
+  BRINGUP_PID=$!
+  ros2 launch ydlidar_ros2_driver ydlidar_raw_launch.py > /tmp/r2_diag_lidar.log 2>&1 &
+  LIDAR_PID=$!
 
-    sleep '"${ROS_WAIT_SEC}"'
+  sleep "${ROS_WAIT_SEC}"
 
-    check_hz() {
-      local topic="$1" min_hz="$2"
-      local line
-      line=$(timeout 6 ros2 topic hz "$topic" 2>/dev/null | awk "/average rate/{print \$3; exit}")
-      if [[ -n "$line" ]]; then
-        awk -v hz="$line" -v min="$min_hz" "BEGIN {exit (hz+0 >= min+0)?0:1}" && echo "HZ_OK $topic $line" || echo "HZ_LOW $topic $line"
-      else
-        echo "HZ_NONE $topic"
-      fi
-    }
-
-    for topic in /scan /imu/data_raw /vel_raw /odom_raw; do
-      if ros2 topic list 2>/dev/null | grep -qx "$topic"; then
-        echo "TOPIC_OK $topic"
-      else
-        echo "TOPIC_MISSING $topic"
-      fi
-    done
-
-    check_hz /scan 3
-    check_hz /imu/data_raw 10
-    check_hz /vel_raw 10
-    check_hz /odom_raw 5
-
-    if [[ "${RUN_MOTION}" == "true" ]]; then
-      echo "MOTION_TEST start"
-      timeout 2 ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.05, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" >/dev/null 2>&1
-      sleep 1
-      timeout 2 ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" >/dev/null 2>&1
-      echo "MOTION_TEST done"
+  check_hz() {
+    local topic="$1" min_hz="$2"
+    local line
+    line=$(timeout 6 ros2 topic hz "$topic" 2>/dev/null | awk '/average rate/{print $3; exit}')
+    if [[ -n "$line" ]]; then
+      awk -v hz="$line" -v min="$min_hz" 'BEGIN {exit (hz+0 >= min+0)?0:1}' \
+        && echo "HZ_OK $topic $line" || echo "HZ_LOW $topic $line"
+    else
+      echo "HZ_NONE $topic"
     fi
+  }
 
-    kill "$BRINGUP_PID" "$LIDAR_PID" 2>/dev/null || true
-    wait "$BRINGUP_PID" "$LIDAR_PID" 2>/dev/null || true
-  ' 2>&1
+  for topic in /scan /imu/data_raw /vel_raw /odom_raw; do
+    if ros2 topic list 2>/dev/null | grep -qx "$topic"; then
+      echo "TOPIC_OK $topic"
+    else
+      echo "TOPIC_MISSING $topic"
+    fi
+  done
+
+  check_hz /scan 3
+  check_hz /imu/data_raw 10
+  check_hz /vel_raw 10
+  check_hz /odom_raw 5
+
+  if [[ "${RUN_MOTION}" == "true" ]]; then
+    echo "MOTION_TEST start"
+    timeout 2 ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist \
+      "{linear: {x: 0.05, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" >/dev/null 2>&1
+    sleep 1
+    timeout 2 ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist \
+      "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}" >/dev/null 2>&1
+    echo "MOTION_TEST done"
+  fi
+
+  kill "$BRINGUP_PID" "$LIDAR_PID" 2>/dev/null || true
+  wait "$BRINGUP_PID" "$LIDAR_PID" 2>/dev/null || true
 )"
-DOCKER_RC=$?
+NATIVE_RC=$?
 set -e
 
 echo "$DIAG_OUTPUT"
@@ -223,8 +211,8 @@ while IFS= read -r line; do
   esac
 done <<< "$DIAG_OUTPUT"
 
-if [[ "$DOCKER_RC" -ne 0 ]]; then
-  ros_fail "Docker ROS diagnosis exited with code $DOCKER_RC"
+if [[ "$NATIVE_RC" -ne 0 ]]; then
+  ros_fail "native ROS diagnosis exited with code $NATIVE_RC"
 fi
 
 echo ""
