@@ -169,7 +169,7 @@ DIAG_OUTPUT="$(
   check_hz() {
     local topic="$1" min_hz="$2"
     local line
-    line=$(timeout 6 ros2 topic hz "$topic" 2>/dev/null | awk '/average rate/{print $3; exit}')
+    line=$(timeout 6 ros2 topic hz "$topic" 2>/dev/null | awk '/average rate/{print $3; exit}' || true)
     if [[ -n "$line" ]]; then
       awk -v hz="$line" -v min="$min_hz" 'BEGIN {exit (hz+0 >= min+0)?0:1}' \
         && echo "HZ_OK $topic $line" || echo "HZ_LOW $topic $line"

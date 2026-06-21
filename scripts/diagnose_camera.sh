@@ -49,7 +49,7 @@ check_topic() {
   fi
   pass "topic exists: $topic"
   local hz
-  hz=$(timeout 6 ros2 topic hz "$topic" 2>/dev/null | awk '/average rate/{print $3; exit}')
+  hz=$(timeout 6 ros2 topic hz "$topic" 2>/dev/null | awk '/average rate/{print $3; exit}' || true)
   if [[ -z "$hz" ]]; then
     fail "no messages: $topic"
     FAIL=$((FAIL + 1))
