@@ -32,15 +32,6 @@ set +u
 source "$SCRIPT_DIR/native_ros_setup.bash"
 
 EXPORT_YAML="${HOME}/maps/exported/${ACTIVE_MAP_ID}/nav_map.yaml"
-if [[ ! -f "$EXPORT_YAML" ]]; then
-  echo "Exporting 2D map for Nav2..."
-  bash "$SCRIPT_DIR/export_rtabmap_map.sh"
-fi
-MAP_YAML="$(python3 -c "
-import json, pathlib
-reg=json.loads(pathlib.Path('${HOME}/maps/registry.json').read_text())
-print(reg['maps']['${ACTIVE_MAP_ID}'].get('export_yaml','${EXPORT_YAML}'))
-")"
 
 wait_for_topic() {
   local topic="$1"
@@ -77,6 +68,26 @@ echo "[2/4] RTAB-Map localization (${MAP_LABEL})..."
 ros2 launch "$LOC_LAUNCH" database_path:="${DB_PATH}" > /tmp/patrol_loc.log 2>&1 &
 LOC_PID=$!
 sleep 15
+
+if [[ ! -f "$EXPORT_YAML" ]]; then
+  echo "[2b/4] Exporting 2D map for Nav2 (from /map topic)..."
+  if ! bash "$SCRIPT_DIR/export_rtabmap_map.sh"; then
+    echo "ERROR: map export failed. See /tmp/patrol_loc.log"
+    tail -20 /tmp/patrol_loc.log 2>/dev/null || true
+    exit 1
+  fi
+fi
+
+MAP_YAML="$(python3 -c "
+import json, pathlib
+reg=json.loads(pathlib.Path('${HOME}/maps/registry.json').read_text())
+print(reg['maps']['${ACTIVE_MAP_ID}'].get('export_yaml','${EXPORT_YAML}'))
+")"
+
+if [[ ! -f "$MAP_YAML" ]]; then
+  echo "ERROR: Nav2 map yaml not found: ${MAP_YAML}"
+  exit 1
+fi
 
 echo "[3/4] Nav2 (${MAP_YAML})..."
 ros2 launch nav2_bringup bringup_launch.py \

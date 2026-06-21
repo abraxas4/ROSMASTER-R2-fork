@@ -3,7 +3,7 @@ Version=1.0
 Type=Application
 Name=R2 순찰 시작 (geofence)
 Comment=Localization + Nav2 patrol inside mapped area. Lidar avoids people.
-Exec=gnome-terminal --title=R2 Patrol -- bash -c "bash /home/jetson/ROSMASTER-R2-fork/scripts/start_patrol.sh; exec bash"
+Exec=gnome-terminal --title=R2 Patrol -- bash -c "bash /home/jetson/ROSMASTER-R2-fork/scripts/start_patrol.sh || { echo; echo '=== 순찰 시작 실패 ==='; echo '로그: /tmp/patrol_loc.log /tmp/patrol_nav2.log'; read -p 'Enter로 닫기...' _; }; exec bash"
 Icon=system-run
 Terminal=false
 Categories=Development;Robotics;
