@@ -35,7 +35,7 @@ class JoyTeleop(Node):
 		self.pub_RGBLight = self.create_publisher(Int32,"RGBLight" , 10)
 		
 		#create sub
-		self.sub_Joy = self.create_subscription(Joy,'joy', self.buttonCallback,1)
+		self.sub_Joy = self.create_subscription(Joy,'joy', self.buttonCallback, 10)
 		
 		#declare parameter and get the value
 		self.declare_parameter('xspeed_limit', 0.2)
@@ -90,8 +90,8 @@ class JoyTeleop(Node):
 		twist = Twist()
 		twist.linear.x = xlinear_speed
 		twist.linear.y = ylinear_speed
-		if self.Joy_active == True:
-			 for i in range(3): self.pub_cmdVel.publish(twist)
+		if self.Joy_active:
+			self.pub_cmdVel.publish(twist)
         
         
 	def user_pc(self, joy_data):

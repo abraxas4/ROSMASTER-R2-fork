@@ -103,6 +103,11 @@ def generate_launch_description():
     joy_node = Node(
         package='joy',
         executable='joy_node',
+        parameters=[{
+            'deadzone': 0.05,
+            'autorepeat_rate': 30.0,
+            'coalesce_interval_ms': 0,
+        }],
     )
 
     return LaunchDescription([
