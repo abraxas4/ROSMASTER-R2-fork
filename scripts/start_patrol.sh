@@ -133,7 +133,7 @@ echo "  - Obstacles: lidar via Nav2 DWB planner"
 echo "  - Stop: Ctrl+C or R2 매핑 중지"
 echo ""
 
-python3 "$SCRIPT_DIR/geofence_patrol.py" --loop &
+python3 "$SCRIPT_DIR/geofence_patrol.py" --loop --margin 1.0 --waypoint-inset 0.8 &
 PATROL_PID=$!
 
 wait "$PATROL_PID"

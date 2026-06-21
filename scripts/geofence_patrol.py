@@ -72,14 +72,25 @@ def geofence_from_map_yaml(yaml_path: Path, margin: float) -> dict:
     }
 
 
-def waypoints_from_geofence(gf: dict) -> list[dict]:
-    cx = (gf['min_x'] + gf['max_x']) / 2.0
-    cy = (gf['min_y'] + gf['max_y']) / 2.0
+def waypoints_from_geofence(gf: dict, inset: float = 0.8) -> list[dict]:
+    """Place patrol corners inset from geofence so the 0.5 m body radius clears walls."""
+    x0 = gf['min_x'] + inset
+    x1 = gf['max_x'] - inset
+    y0 = gf['min_y'] + inset
+    y1 = gf['max_y'] - inset
+    if x1 <= x0 or y1 <= y0:
+        raise RuntimeError(
+            f'Geofence too small for inset {inset} m '
+            f'(x=[{gf["min_x"]:.2f},{gf["max_x"]:.2f}], '
+            f'y=[{gf["min_y"]:.2f},{gf["max_y"]:.2f}])'
+        )
+    cx = (x0 + x1) / 2.0
+    cy = (y0 + y1) / 2.0
     pts = [
-        (gf['min_x'], gf['min_y'], 0.0),
-        (gf['max_x'], gf['min_y'], math.pi / 2),
-        (gf['max_x'], gf['max_y'], math.pi),
-        (gf['min_x'], gf['max_y'], -math.pi / 2),
+        (x0, y0, 0.0),
+        (x1, y0, math.pi / 2),
+        (x1, y1, math.pi),
+        (x0, y1, -math.pi / 2),
         (cx, cy, 0.0),
     ]
     return [{'x': x, 'y': y, 'yaw': yaw} for x, y, yaw in pts]
@@ -132,7 +143,9 @@ def pose_from_wp(wp: dict) -> PoseStamped:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description='Geofence patrol with Nav2')
-    parser.add_argument('--margin', type=float, default=0.6, help='Inset from map edge (m)')
+    parser.add_argument('--margin', type=float, default=1.0, help='Inset from map edge (m)')
+    parser.add_argument('--waypoint-inset', type=float, default=0.8,
+                        help='Extra inset for patrol corners inside geofence (m)')
     parser.add_argument('--loop', action='store_true', default=True)
     parser.add_argument('--pause', type=float, default=3.0, help='Seconds at each waypoint')
     args = parser.parse_args()
@@ -158,11 +171,24 @@ def main() -> int:
     geofence = geofence_from_map_yaml(yaml_path, args.margin)
     gf_path.write_text(json.dumps(geofence, indent=2), encoding='utf-8')
 
-    if wp_path.exists():
-        waypoints = json.loads(wp_path.read_text(encoding='utf-8'))
+    meta_path = PATROL_DIR / f'{map_id}_waypoints_meta.json'
+    meta = {
+        'margin': args.margin,
+        'waypoint_inset': args.waypoint_inset,
+        'version': 2,
+    }
+    if wp_path.exists() and meta_path.exists():
+        saved = json.loads(meta_path.read_text(encoding='utf-8'))
+        if saved == meta:
+            waypoints = json.loads(wp_path.read_text(encoding='utf-8'))
+        else:
+            waypoints = waypoints_from_geofence(geofence, args.waypoint_inset)
+            wp_path.write_text(json.dumps(waypoints, indent=2), encoding='utf-8')
+            meta_path.write_text(json.dumps(meta, indent=2), encoding='utf-8')
     else:
-        waypoints = waypoints_from_geofence(geofence)
+        waypoints = waypoints_from_geofence(geofence, args.waypoint_inset)
         wp_path.write_text(json.dumps(waypoints, indent=2), encoding='utf-8')
+        meta_path.write_text(json.dumps(meta, indent=2), encoding='utf-8')
 
     name = entry.get('display_name') or map_id
     print(f'Patrol map: {name}')
