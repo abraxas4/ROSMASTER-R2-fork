@@ -30,6 +30,10 @@ collect_device_args() {
     local candidates=(
         /dev/astradepth
         /dev/astrauvc
+        /dev/AstraPlus
+        /dev/AstraPlus_rgb
+        /dev/astro_pro_plus
+        /dev/astro_pro_plus_rgb
         /dev/video0
         /dev/video1
         /dev/myserial
