@@ -30,6 +30,8 @@ def generate_launch_description():
         'qos_scan': qos,
         'qos_image': qos,
         'qos_imu': qos,
+        'topic_queue_size': 30,
+        'sync_queue_size': 30,
         'database_path': database_path,
         'Reg/Strategy': '1',
         'Reg/Force3DoF': 'true',
@@ -38,10 +40,15 @@ def generate_launch_description():
         'Optimizer/GravitySigma': '0',
     }
 
-    remappings = [
+    camera_remappings = [
         ('rgb/image', '/camera/color/image_raw'),
         ('rgb/camera_info', '/camera/color/camera_info'),
         ('depth/image', '/camera/depth/image_raw'),
+    ]
+
+    slam_remappings = [
+        ('rgbd_image', '/rgbd_image'),
+        ('scan', '/scan'),
         ('odom', '/odom'),
     ]
 
@@ -63,7 +70,7 @@ def generate_launch_description():
                 'qos': qos,
             }
         ],
-        remappings=remappings,
+        remappings=camera_remappings,
     )
 
     slam_fresh_node = Node(
@@ -72,7 +79,7 @@ def generate_launch_description():
         executable='rtabmap',
         output='screen',
         parameters=[parameters],
-        remappings=remappings,
+        remappings=slam_remappings,
         arguments=['-d'],
     )
 
@@ -82,7 +89,7 @@ def generate_launch_description():
         executable='rtabmap',
         output='screen',
         parameters=[parameters],
-        remappings=remappings,
+        remappings=slam_remappings,
     )
 
     return LaunchDescription([
