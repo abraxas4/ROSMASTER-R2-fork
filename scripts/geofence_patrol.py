@@ -34,20 +34,88 @@ def yaw_to_quat(yaw: float) -> tuple[float, float, float, float]:
     return 0.0, 0.0, math.sin(yaw / 2.0), math.cos(yaw / 2.0)
 
 
-def pgm_size(path: Path) -> tuple[int, int]:
-    lines: list[str] = []
+def read_pgm(path: Path) -> tuple[int, int, list[int]]:
     with path.open('rb') as fh:
-        for _ in range(20):
+        header: list[str] = []
+        while len(header) < 3:
             line = fh.readline().decode('ascii', errors='ignore').strip()
             if not line or line.startswith('#'):
                 continue
-            lines.append(line)
-            if len(lines) >= 3:
-                break
-    if len(lines) < 3:
-        raise RuntimeError(f'invalid PGM header: {path}')
-    w, h = map(int, lines[1].split())
+            header.append(line)
+        w, h = map(int, header[1].split())
+        grid = list(fh.read(w * h))
+    if len(grid) < w * h:
+        raise RuntimeError(f'invalid PGM payload: {path}')
+    return w, h, grid
+
+
+def pgm_size(path: Path) -> tuple[int, int]:
+    w, h, _ = read_pgm(path)
     return w, h
+
+
+def waypoints_from_map_yaml(yaml_path: Path, clearance_m: float = 0.5) -> list[dict]:
+    """Pick patrol goals only on known-free map cells (not unknown/occupied edges)."""
+    import yaml
+
+    data = yaml.safe_load(yaml_path.read_text(encoding='utf-8'))
+    res = float(data['resolution'])
+    ox, oy, _ = data['origin']
+    pgm_path = yaml_path.with_name(data['image'])
+    w, h, grid = read_pgm(pgm_path)
+    radius_cells = max(1, int(math.ceil(clearance_m / res)))
+
+    def cell_free(cx: int, cy: int) -> bool:
+        if not (0 <= cx < w and 0 <= cy < h):
+            return False
+        if grid[cy * w + cx] < 250:
+            return False
+        for dy in range(-radius_cells, radius_cells + 1):
+            for dx in range(-radius_cells, radius_cells + 1):
+                if dx * dx + dy * dy > radius_cells * radius_cells:
+                    continue
+                nx, ny = cx + dx, cy + dy
+                if not (0 <= nx < w and 0 <= ny < h) or grid[ny * w + nx] < 250:
+                    return False
+        return True
+
+    free_pts: list[tuple[float, float]] = []
+    for cy in range(h):
+        for cx in range(w):
+            if cell_free(cx, cy):
+                free_pts.append((ox + (cx + 0.5) * res, oy + (cy + 0.5) * res))
+
+    if not free_pts:
+        raise RuntimeError('no free map cells with requested clearance')
+
+    xs = [p[0] for p in free_pts]
+    ys = [p[1] for p in free_pts]
+    x0, x1 = min(xs), max(xs)
+    y0, y1 = min(ys), max(ys)
+    cx = (x0 + x1) / 2.0
+    cy = (y0 + y1) / 2.0
+
+    def nearest_free(x: float, y: float) -> tuple[float, float]:
+        best = free_pts[0]
+        best_d = float('inf')
+        for fx, fy in free_pts:
+            d = (fx - x) ** 2 + (fy - y) ** 2
+            if d < best_d:
+                best_d = d
+                best = (fx, fy)
+        return best
+
+    targets = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (cx, cy)]
+    waypoints: list[dict] = []
+    seen: set[tuple[float, float]] = set()
+    for x, y in targets:
+        fx, fy = nearest_free(x, y)
+        key = (round(fx, 2), round(fy, 2))
+        if key in seen:
+            continue
+        seen.add(key)
+        waypoints.append({'x': fx, 'y': fy, 'yaw': 0.0})
+    return waypoints
 
 
 def geofence_from_map_yaml(yaml_path: Path, margin: float) -> dict:
@@ -175,18 +243,20 @@ def main() -> int:
     meta = {
         'margin': args.margin,
         'waypoint_inset': args.waypoint_inset,
-        'version': 2,
+        'clearance_m': 0.5,
+        'source': 'free_map_cells',
+        'version': 3,
     }
     if wp_path.exists() and meta_path.exists():
         saved = json.loads(meta_path.read_text(encoding='utf-8'))
         if saved == meta:
             waypoints = json.loads(wp_path.read_text(encoding='utf-8'))
         else:
-            waypoints = waypoints_from_geofence(geofence, args.waypoint_inset)
+            waypoints = waypoints_from_map_yaml(yaml_path, clearance_m=0.5)
             wp_path.write_text(json.dumps(waypoints, indent=2), encoding='utf-8')
             meta_path.write_text(json.dumps(meta, indent=2), encoding='utf-8')
     else:
-        waypoints = waypoints_from_geofence(geofence, args.waypoint_inset)
+        waypoints = waypoints_from_map_yaml(yaml_path, clearance_m=0.5)
         wp_path.write_text(json.dumps(waypoints, indent=2), encoding='utf-8')
         meta_path.write_text(json.dumps(meta, indent=2), encoding='utf-8')
 

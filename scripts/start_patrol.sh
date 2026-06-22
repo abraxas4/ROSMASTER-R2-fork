@@ -127,10 +127,17 @@ if ! wait_for_lifecycle_active /bt_navigator 60; then
   exit 1
 fi
 
+echo "[3b/4] Seeding AMCL from RTAB-Map pose..."
+if ! python3 "$SCRIPT_DIR/publish_initial_pose.py"; then
+  echo "WARN: initial pose publish failed — patrol may drift"
+fi
+sleep 2
+
 echo "[4/4] Geofence patrol loop..."
 echo "  - Geofence: mapped area minus margin (see ~/maps/geofence/)"
+echo "  - Waypoints: known-free cells only (not map unknown edges)"
 echo "  - Obstacles: lidar via Nav2 DWB planner"
-echo "  - Stop: Ctrl+C or R2 매핑 중지"
+echo "  - Stop: Ctrl+C or R2 순찰 중지"
 echo ""
 
 python3 "$SCRIPT_DIR/geofence_patrol.py" --loop --margin 1.0 --waypoint-inset 0.8 &
