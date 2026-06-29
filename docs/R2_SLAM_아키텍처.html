@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROSMASTER R2 — SLAM 아키텍처 및 지도 표시 구조</title>
+  <style>
+    :root {
+      --bg: #f8f9fb;
+      --card: #ffffff;
+      --text: #1a1d26;
+      --muted: #5c6370;
+      --accent: #2563eb;
+      --accent-light: #dbeafe;
+      --ok: #059669;
+      --ok-bg: #d1fae5;
+      --warn: #d97706;
+      --warn-bg: #fef3c7;
+      --err: #dc2626;
+      --err-bg: #fee2e2;
+      --border: #e2e8f0;
+      --code-bg: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.75;
+      color: var(--text);
+      background: var(--bg);
+      margin: 0;
+      padding: 0;
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+    header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: #fff;
+      padding: 2.5rem 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 0 0 1rem 1rem;
+    }
+    header h1 { margin: 0 0 0.5rem; font-size: 1.75rem; font-weight: 700; }
+    header .sub { opacity: 0.9; font-size: 0.95rem; }
+    header .meta { margin-top: 1rem; font-size: 0.85rem; opacity: 0.8; }
+    nav.toc {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+    nav.toc h2 { margin: 0 0 0.75rem; font-size: 1rem; color: var(--muted); }
+    nav.toc ol { margin: 0; padding-left: 1.25rem; }
+    nav.toc a { color: var(--accent); text-decoration: none; }
+    nav.toc a:hover { text-decoration: underline; }
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.5rem;
+    }
+    h2 { font-size: 1.35rem; margin: 0 0 1rem; color: #0f172a; border-bottom: 2px solid var(--accent-light); padding-bottom: 0.4rem; }
+    h3 { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; color: #334155; }
+    h4 { font-size: 1rem; margin: 1rem 0 0.5rem; }
+    p { margin: 0.6rem 0; }
+    ul, ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+    li { margin: 0.35rem 0; }
+    code, pre {
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 0.88em;
+    }
+    code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 0.25rem;
+    }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem 1.25rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      margin: 0.75rem 0;
+    }
+    pre code { background: none; padding: 0; color: inherit; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      margin: 1rem 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f1f5f9; font-weight: 600; }
+    tr:nth-child(even) td { background: #fafbfc; }
+    .box {
+      border-radius: 0.5rem;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      border-left: 4px solid;
+    }
+    .box-goal { background: var(--accent-light); border-color: var(--accent); }
+    .box-ok { background: var(--ok-bg); border-color: var(--ok); }
+    .box-warn { background: var(--warn-bg); border-color: var(--warn); }
+    .box-err { background: var(--err-bg); border-color: var(--err); }
+    .box strong { display: block; margin-bottom: 0.35rem; }
+    .diagram {
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-weight: 600;
+      margin-right: 0.25rem;
+    }
+    .tag-slam { background: #dbeafe; color: #1d4ed8; }
+    .tag-nav { background: #d1fae5; color: #065f46; }
+    .tag-viz { background: #ede9fe; color: #5b21b6; }
+    .tag-sensor { background: #fef3c7; color: #92400e; }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.82rem;
+      padding: 2rem 0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>ROSMASTER R2 — SLAM 아키텍처 및 지도 표시 구조</h1>
+    <div class="sub">센서 입력부터 지도 생성, RViz 표시, 순찰 활용까지의 전체 데이터 흐름</div>
+    <div class="meta">최종 갱신: 2026-06-29</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- 목차 -->
+<nav class="toc">
+  <h2>목차</h2>
+  <ol>
+    <li><a href="#overview">전체 구조 개요</a></li>
+    <li><a href="#sensors">1단계: 센서 입력 (laser_bringup)</a></li>
+    <li><a href="#slam-core">2단계: RTAB-Map SLAM 처리</a></li>
+    <li><a href="#map-display">3단계: 지도 표시 (RViz)</a></li>
+    <li><a href="#tf-tree">TF 트리 — 좌표 변환 체인</a></li>
+    <li><a href="#map-management">지도 관리 체계</a></li>
+    <li><a href="#patrol">순찰 워크플로 (Nav2 연동)</a></li>
+    <li><a href="#nav2-params">Nav2 핵심 파라미터</a></li>
+    <li><a href="#other-slam">기타 SLAM 알고리즘</a></li>
+    <li><a href="#occupancy-grid">부록: OccupancyGrid 셀 값의 의미</a></li>
+    <li><a href="#file-index">파일 색인</a></li>
+  </ol>
+</nav>
+
+
+<!-- ===== 전체 구조 개요 ===== -->
+<section id="overview">
+  <h2>전체 구조 개요</h2>
+
+  <p>이 프로젝트는 <strong>RTAB-Map</strong>(Real-Time Appearance-Based Mapping)을 주력 SLAM 엔진으로 사용합니다.
+     로봇이 라이다와 RGB-D 카메라 데이터를 RTAB-Map에 공급하면, RTAB-Map이 스캔 매칭과 루프 클로저를 수행하여
+     <code>/map</code> 토픽(2D 점유 격자)을 만들어 RViz에 실시간으로 표시합니다.</p>
+
+  <div class="diagram">센서                    SLAM                     표시/활용
+┌──────────────┐    ┌──────────────────┐    ┌─────────────────────┐
+│ RPLIDAR      │──&gt;│                  │──&gt;│ /map (OccupancyGrid)│──&gt; RViz 2D 지도
+│  /scan       │   │                  │    │ /mapData (3D 클라우드)│──&gt; RViz 포인트클라우드
+├──────────────┤   │   RTAB-Map       │    │ /mapGraph (그래프)   │──&gt; RViz 그래프 오버레이
+│ Orbbec Astra │──&gt;│   rtabmap_slam   │    │ map-&gt;odom TF       │──&gt; 로봇 위치 보정
+│  /camera/*   │   │                  │    └─────────────────────┘
+├──────────────┤   │                  │
+│ 바퀴 엔코더   │──&gt;│                  │    ┌─────────────────────┐
+│  /odom       │   └──────────────────┘    │ Nav2 (순찰 시)       │
+└──────────────┘           │               │  map_server + AMCL   │
+                           │               │  + DWB planner       │
+                    ~/.ros/rtabmap.db       └─────────────────────┘
+                    (SLAM 데이터베이스)</div>
+</section>
+
+
+<!-- ===== 1단계: 센서 입력 ===== -->
+<section id="sensors">
+  <h2>1단계: 센서 입력 (laser_bringup)</h2>
+
+  <p><code>laser_bringup_launch.py</code>가 로봇 하드웨어와 센서를 동시에 가동합니다.</p>
+
+  <table>
+    <thead>
+      <tr><th>센서</th><th>ROS2 토픽</th><th>역할</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag tag-sensor">라이다</span> RPLIDAR (a1/s2/4ROS)</td>
+        <td><code>/scan</code></td>
+        <td>360도 2D 레이저 스캔 — 벽과 장애물의 거리 측정</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-sensor">카메라</span> Orbbec Astra Pro Plus</td>
+        <td><code>/camera/color/image_raw</code><br>
+            <code>/camera/depth/image_raw</code><br>
+            <code>/camera/color/camera_info</code></td>
+        <td>컬러(RGB) 이미지 + 깊이(Depth) 이미지 — 시각적 특징 + 3D 정보</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-sensor">엔코더</span> yahboomcar_bringup</td>
+        <td><code>/odom</code></td>
+        <td>바퀴 회전에서 계산한 오도메트리 (추정 이동량)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>static TF (센서 위치 고정)</h3>
+  <p>라이다는 로봇 본체 위에 고정되어 있으므로 <code>base_link</code> &rarr; <code>laser</code> 사이의 정적 변환을 퍼블리시합니다.
+     위치는 x=0.0435m, z=0.11m이며, RPLIDAR 종류(a1/s2 vs 4ROS)에 따라 yaw 방향이 180도 다릅니다.</p>
+
+  <div class="box box-goal">
+    <strong>왜 두 센서를 동시에 쓰나?</strong>
+    라이다는 넓은 시야(360도)로 벽/장애물을 정확히 측정하고, RGB-D 카메라는 시각적 특징(텍스처, 색상)을 제공합니다.
+    RTAB-Map은 이 두 가지를 결합하여 라이다만으로는 구분 못하는 비슷한 복도도 구별할 수 있습니다.
+  </div>
+</section>
+
+
+<!-- ===== 2단계: RTAB-Map SLAM ===== -->
+<section id="slam-core">
+  <h2>2단계: RTAB-Map SLAM 처리</h2>
+
+  <p><code>rtabmap_managed.launch.py</code>(또는 원본 <code>rtabmap_sync_launch.py</code>)가 두 개의 ROS2 노드를 실행합니다.</p>
+
+  <h3>a) <code>rgbd_sync</code> — 이미지 시간 동기화</h3>
+  <p>RGB 이미지와 Depth 이미지가 약간 다른 시점에 도착하므로, <code>rgbd_sync</code> 노드가 이 둘을 시간 동기화하여
+     하나의 <code>/rgbd_image</code> 토픽으로 합칩니다.</p>
+  <ul>
+    <li><code>approx_sync: True</code> — 정확히 같은 타임스탬프가 아니어도 0.01초 이내면 매칭</li>
+    <li>입력: <code>/camera/color/image_raw</code> + <code>/camera/depth/image_raw</code></li>
+    <li>출력: <code>/rgbd_image</code></li>
+  </ul>
+
+  <h3>b) <code>rtabmap</code> — 실제 SLAM 수행</h3>
+
+  <div class="diagram">입력                        처리                         출력
+/rgbd_image ──┐                                      ┌──&gt; /map (2D 점유 격자)
+              ├──&gt; [스캔 매칭] ──&gt; [그래프 최적화] ──┼──&gt; /mapData (3D 포인트클라우드)
+/scan ────────┤         │                             ├──&gt; /mapGraph (노드/링크)
+              │    [루프 클로저 감지]                   └──&gt; map-&gt;odom TF (위치 보정)
+/odom ────────┘</div>
+
+  <h4>핵심 파라미터</h4>
+  <table>
+    <thead>
+      <tr><th>파라미터</th><th>값</th><th>설명</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>frame_id</code></td>
+        <td><code>base_footprint</code></td>
+        <td>로봇의 기준 좌표 프레임 (바닥면 투영)</td>
+      </tr>
+      <tr>
+        <td><code>Reg/Strategy</code></td>
+        <td><code>1</code> (ICP)</td>
+        <td>연속 프레임 정합 방식: ICP(Iterative Closest Point)로 라이다 스캔 매칭</td>
+      </tr>
+      <tr>
+        <td><code>Reg/Force3DoF</code></td>
+        <td><code>true</code></td>
+        <td>2D SLAM 강제 — x, y, yaw 3자유도만 추정 (높이/기울기 무시)</td>
+      </tr>
+      <tr>
+        <td><code>RGBD/NeighborLinkRefining</code></td>
+        <td><code>True</code></td>
+        <td>인접 키프레임 간 링크를 ICP로 미세 조정</td>
+      </tr>
+      <tr>
+        <td><code>Grid/RangeMin</code></td>
+        <td><code>0.2</code>m</td>
+        <td>로봇 본체 위의 라이다 포인트 무시 (자기 자신 제거)</td>
+      </tr>
+      <tr>
+        <td><code>Optimizer/GravitySigma</code></td>
+        <td><code>0</code></td>
+        <td>IMU 중력 제약 비활성 (이미 2D 모드이므로)</td>
+      </tr>
+      <tr>
+        <td><code>subscribe_rgbd</code></td>
+        <td><code>True</code></td>
+        <td>RGB-D 카메라 데이터 구독</td>
+      </tr>
+      <tr>
+        <td><code>subscribe_scan</code></td>
+        <td><code>True</code></td>
+        <td>라이다 스캔 데이터 구독 — 카메라+라이다 퓨전</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>SLAM 모드 vs 로컬라이제이션 모드</h3>
+  <table>
+    <thead>
+      <tr><th>모드</th><th>사용 시점</th><th>핵심 차이</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="tag tag-slam">SLAM 모드</span></td>
+        <td>새 지도 생성 / 기존 지도 확장</td>
+        <td><code>Mem/IncrementalMemory = True</code> (기본값)<br>새 키프레임을 계속 그래프에 추가</td>
+      </tr>
+      <tr>
+        <td><span class="tag tag-nav">로컬라이제이션 모드</span></td>
+        <td>순찰, 내비게이션 (지도 고정)</td>
+        <td><code>Mem/IncrementalMemory = False</code><br>
+            <code>Mem/InitWMWithAllNodes = True</code><br>
+            기존 지도 위에서 현재 위치만 추적</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="box box-ok">
+    <strong>데이터베이스 저장</strong>
+    RTAB-Map은 모든 키프레임, 포인트클라우드, 그래프 구조를 SQLite 데이터베이스(<code>~/.ros/rtabmap.db</code>)에 저장합니다.
+    이 DB 파일 하나가 곧 "지도"입니다. 프로그램을 종료했다가 다시 시작해도 이전 지도를 이어서 확장하거나,
+    그 위에서 로컬라이제이션을 수행할 수 있습니다.
+  </div>
+</section>
+
+
+<!-- ===== 3단계: 지도 표시 ===== -->
+<section id="map-display">
+  <h2>3단계: 지도 표시 (RViz)</h2>
+
+  <p>매핑 중 RViz는 <code>rtabmap_map.rviz</code> 설정을 사용하여 다음을 동시에 표시합니다.</p>
+
+  <table>
+    <thead>
+      <tr><th>표시 항목</th><th>토픽</th><th>RViz 플러그인</th><th>보이는 것</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>2D 점유 격자</strong></td>
+        <td><code>/map</code></td>
+        <td><code>rviz_default_plugins/Map</code></td>
+        <td>흰색(빈 공간), 검은색(장애물), 회색(미탐사) 격자</td>
+      </tr>
+      <tr>
+        <td><strong>3D 포인트클라우드</strong></td>
+        <td><code>/mapData</code></td>
+        <td><code>rtabmap_rviz_plugins/MapCloud</code></td>
+        <td>RGB 색상이 입혀진 3D 점군 — 환경을 입체적으로 표현</td>
+      </tr>
+      <tr>
+        <td><strong>SLAM 그래프</strong></td>
+        <td><code>/mapGraph</code></td>
+        <td><code>rtabmap_rviz_plugins/MapGraph</code></td>
+        <td>키프레임 간 연결선 (파란색=이웃, 빨간색=루프 클로저)</td>
+      </tr>
+      <tr>
+        <td><strong>실시간 라이다</strong></td>
+        <td><code>/scan</code></td>
+        <td><code>rviz_default_plugins/LaserScan</code></td>
+        <td>현재 라이다가 보는 점들 (무지개색)</td>
+      </tr>
+      <tr>
+        <td><strong>3D 점군 지도</strong></td>
+        <td><code>/cloud_map</code></td>
+        <td><code>rviz_default_plugins/PointCloud2</code></td>
+        <td>누적된 포인트클라우드 맵</td>
+      </tr>
+      <tr>
+        <td><strong>오도메트리</strong></td>
+        <td><code>/odom_raw</code></td>
+        <td><code>rviz_default_plugins/Odometry</code></td>
+        <td>로봇 이동 방향 화살표</td>
+      </tr>
+      <tr>
+        <td><strong>로봇 모델</strong></td>
+        <td><code>/robot_description</code></td>
+        <td><code>rviz_default_plugins/RobotModel</code></td>
+        <td>URDF 기반 로봇 3D 모델</td>
+      </tr>
+      <tr>
+        <td><strong>RTAB-Map 정보</strong></td>
+        <td><code>/info</code></td>
+        <td><code>rtabmap_rviz_plugins/Info</code></td>
+        <td>루프 클로저 횟수, 처리 시간 등 상태 정보</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>RViz 도구 (사용자 인터랙션)</h3>
+  <ul>
+    <li><strong>2D Goal Pose</strong> &rarr; <code>/goal_pose</code>: 클릭으로 목표 지점 지정</li>
+    <li><strong>Set Initial Pose</strong> &rarr; <code>/initialpose</code>: 로봇 초기 위치 수동 설정</li>
+    <li><strong>Publish Point</strong> &rarr; <code>/clicked_point</code>: 지도 위 좌표 확인</li>
+  </ul>
+
+  <div class="box box-goal">
+    <strong>RViz 전용 시각화 vs rtabmap_viz</strong>
+    <code>rtabmap_viz_managed.launch.py</code>를 실행하면 RTAB-Map 자체 시각화 도구(rtabmap_viz)가 열립니다.
+    이것은 RViz와 별도의 창으로, SLAM 내부 상태(루프 클로저, 그래프 최적화 과정)를 더 상세히 볼 수 있습니다.
+    일반 매핑에는 RViz만으로 충분합니다.
+  </div>
+</section>
+
+
+<!-- ===== TF 트리 ===== -->
+<section id="tf-tree">
+  <h2>TF 트리 — 좌표 변환 체인</h2>
+
+  <p>ROS2에서 "로봇이 지도 위 어디에 있는가"는 TF(Transform) 프레임 체인으로 결정됩니다.</p>
+
+  <div class="diagram">map                           RTAB-Map이 발행 (SLAM 보정값)
+ └── odom                      바퀴 엔코더가 발행 (누적 오차 있음)
+      └── base_footprint       로봇 바닥면
+           └── base_link       로봇 본체 중심
+                ├── laser              라이다 (static TF)
+                ├── laser_link         라이다 링크
+                ├── camera_link        카메라 본체
+                │    ├── camera_color_frame
+                │    │    └── camera_color_optical_frame
+                │    └── camera_depth_frame
+                │         └── camera_depth_optical_frame
+                ├── imu_link           관성 센서
+                ├── front_left_wheel   앞바퀴 (좌)
+                ├── front_right_wheel  앞바퀴 (우)
+                ├── back_left_wheel    뒷바퀴 (좌)
+                └── back_right_wheel   뒷바퀴 (우)</div>
+
+  <h3>각 변환의 역할</h3>
+  <table>
+    <thead>
+      <tr><th>변환</th><th>발행자</th><th>의미</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>map</code> &rarr; <code>odom</code></td>
+        <td>RTAB-Map</td>
+        <td>SLAM이 계산한 보정값. 바퀴 오도메트리의 누적 오차를 보상</td>
+      </tr>
+      <tr>
+        <td><code>odom</code> &rarr; <code>base_footprint</code></td>
+        <td>yahboomcar_bringup (엔코더)</td>
+        <td>바퀴 회전으로 추정한 로봇 이동량. 미끄러짐 등으로 점점 틀어짐</td>
+      </tr>
+      <tr>
+        <td><code>base_link</code> &rarr; <code>laser</code></td>
+        <td>static_transform_publisher</td>
+        <td>라이다가 로봇 위 어디에 장착되어 있는지 (고정값)</td>
+      </tr>
+      <tr>
+        <td><code>base_link</code> &rarr; <code>camera_link</code></td>
+        <td>robot_state_publisher (URDF)</td>
+        <td>카메라 장착 위치 (URDF 모델에서 정의)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="box box-warn">
+    <strong>왜 map &rarr; odom &rarr; base_footprint 2단계인가?</strong>
+    바퀴 엔코더(<code>odom</code> &rarr; <code>base_footprint</code>)는 빠르게 갱신되지만 누적 오차가 생깁니다.
+    SLAM(<code>map</code> &rarr; <code>odom</code>)은 느리지만 루프 클로저로 오차를 한꺼번에 보정합니다.
+    이 2단계 구조 덕분에 빠른 엔코더 + 정확한 SLAM을 동시에 활용할 수 있습니다.
+  </div>
+</section>
+
+
+<!-- ===== 지도 관리 ===== -->
+<section id="map-management">
+  <h2>지도 관리 체계</h2>
+
+  <p><code>map_registry.py</code>가 여러 장소의 지도를 체계적으로 관리합니다.</p>
+
+  <h3>디렉터리 구조</h3>
+  <pre><code>~/maps/
+├── databases/          # RTAB-Map DB 파일들 (각 장소별)
+│   ├── loc_p37.5665_p126.9780.db    # 위치 좌표 기반 자동 이름
+│   └── ...
+├── exported/           # Nav2용으로 내보낸 2D 지도
+│   └── loc_xxx/
+│       ├── nav_map.yaml
+│       └── nav_map.pgm
+├── patrol/             # 순찰 웨이포인트
+├── geofence/           # 울타리 영역 정보
+└── registry.json       # 모든 지도 메타데이터 (위치, 이름, 경로)
+
+~/.ros/rtabmap.db  →  심볼릭 링크 → 현재 활성 지도 DB</code></pre>
+
+  <h3>운영 워크플로</h3>
+
+  <h4>새 지도 생성</h4>
+  <pre><code># start_rtabmap_new.sh 실행 시 내부 동작:
+python3 map_registry.py new          # IP 기반 위치 추정 → DB 파일 생성
+  → 위치 좌표로 map_id 자동 생성 (예: loc_p37.5665_p126.9780)
+  → ~/maps/databases/{map_id}.db 경로 등록
+  → ~/.ros/rtabmap.db 심볼릭 링크 갱신
+  → DELETE_DB_ON_START=1 설정
+
+bash rtabmap_mapping_core.sh new
+  → 카메라 시작 (astro_pro_plus.launch.xml)
+  → 카메라 토픽 대기 (최대 25초)
+  → rtabmap_managed.launch.py 실행 (delete_db:=true)</code></pre>
+
+  <h4>기존 지도 이어서 매핑</h4>
+  <pre><code># start_rtabmap_continue.sh 실행 시:
+python3 map_registry.py continue     # 활성 지도 DB 경로 조회
+  → DELETE_DB_ON_START=0 설정
+
+bash rtabmap_mapping_core.sh continue
+  → rtabmap_managed.launch.py 실행 (delete_db:=false)</code></pre>
+
+  <h4>지도 이름 지정</h4>
+  <pre><code># 자동 생성된 좌표 ID를 사람이 읽기 쉬운 이름으로
+python3 map_registry.py rename '집'
+python3 map_registry.py rename '회사'</code></pre>
+</section>
+
+
+<!-- ===== 순찰 워크플로 ===== -->
+<section id="patrol">
+  <h2>순찰 워크플로 (Nav2 연동)</h2>
+
+  <p><code>start_patrol.sh</code>는 매핑된 지도 위에서 자율 순찰을 수행합니다. 4단계로 진행됩니다.</p>
+
+  <div class="diagram">[1/4] 카메라 시작
+  │  Orbbec Astra Pro Plus → /camera/* 토픽 대기
+  ▼
+[2/4] RTAB-Map 로컬라이제이션
+  │  rtabmap_localization_managed.launch.py
+  │  → 기존 DB 위에서 현재 위치만 추적 (지도 추가 안 함)
+  │
+  │  [2b] 2D 지도 내보내기 (아직 없으면)
+  │  export_rtabmap_map.sh
+  │  → /map 토픽에서 nav_map.yaml + nav_map.pgm 저장
+  │  → map_saver_cli 사용
+  ▼
+[3/4] Nav2 시작
+  │  nav2_bringup → bringup_launch.py
+  │  → map_server: nav_map.yaml 로드 (lifecycle: active 대기)
+  │  → AMCL: 라이다 기반 위치 추정 (파티클 필터)
+  │  → bt_navigator: 행동 트리 내비게이션
+  │
+  │  [3b] AMCL 초기 위치 주입
+  │  publish_initial_pose.py
+  │  → RTAB-Map의 현재 추정 위치를 AMCL에 전달
+  ▼
+[4/4] 순찰 루프
+  │  geofence_patrol.py --loop --margin 1.0 --waypoint-inset 0.8
+  │  → 지도 PGM에서 free cell 분석 → 안전한 웨이포인트 생성
+  │  → Nav2의 BasicNavigator로 웨이포인트 순회
+  │  → 장애물 회피: Nav2 DWB 플래너 + 라이다 costmap
+  ▼
+  Ctrl+C로 중지</div>
+
+  <div class="box box-ok">
+    <strong>웨이포인트 생성 원리</strong>
+    <code>geofence_patrol.py</code>의 <code>waypoints_from_map_yaml()</code> 함수는 내보낸 PGM 이미지를 직접 읽어서,
+    각 셀의 밝기값이 250 이상(확실히 빈 공간)이고 주변 반경 내에도 장애물이 없는 셀만 웨이포인트 후보로 선택합니다.
+    지도 가장자리의 미탐사 영역(회색)이나 벽 근처는 자동으로 제외됩니다.
+  </div>
+</section>
+
+
+<!-- ===== Nav2 파라미터 ===== -->
+<section id="nav2-params">
+  <h2>Nav2 핵심 파라미터</h2>
+
+  <p>순찰 시 사용되는 <code>rtabmap_nav_params.yaml</code>의 주요 설정입니다.</p>
+
+  <h3>AMCL (적응적 몬테카를로 위치추정)</h3>
+  <table>
+    <thead>
+      <tr><th>파라미터</th><th>값</th><th>설명</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>max_particles</code></td><td>2000</td><td>파티클 최대 수 (많을수록 정확, 느림)</td></tr>
+      <tr><td><code>min_particles</code></td><td>500</td><td>파티클 최소 수</td></tr>
+      <tr><td><code>laser_model_type</code></td><td><code>likelihood_field</code></td><td>레이저 측정 모델 방식</td></tr>
+      <tr><td><code>scan_topic</code></td><td><code>/scan</code></td><td>라이다 토픽</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Costmap (비용 지도)</h3>
+  <table>
+    <thead>
+      <tr><th>항목</th><th>Local Costmap</th><th>Global Costmap</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>갱신 주기</td><td>5.0 Hz</td><td>1.0 Hz</td></tr>
+      <tr><td>해상도</td><td>0.05 m/셀</td><td>0.05 m/셀</td></tr>
+      <tr><td>팽창 반경</td><td>0.6 m</td><td>0.6 m</td></tr>
+      <tr><td>창 방식</td><td>rolling window (로봇 주변만)</td><td>전체 지도</td></tr>
+      <tr><td>레이어</td><td>obstacle + inflation</td><td>static + obstacle + inflation</td></tr>
+    </tbody>
+  </table>
+
+  <h3>로봇 제어</h3>
+  <table>
+    <thead>
+      <tr><th>파라미터</th><th>값</th><th>설명</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>max_vel_x</code></td><td>0.15 m/s</td><td>최대 전진 속도 (R2 Ackermann 조향에 맞춰 낮게 설정)</td></tr>
+      <tr><td><code>max_vel_theta</code></td><td>0.6 rad/s</td><td>최대 회전 속도</td></tr>
+      <tr><td><code>sim_time</code></td><td>2.5초</td><td>DWB 플래너의 전방 시뮬레이션 시간</td></tr>
+      <tr><td>전역 플래너</td><td><code>NavfnPlanner</code> (A*)</td><td>tolerance 1.0m, unknown 영역 허용</td></tr>
+    </tbody>
+  </table>
+</section>
+
+
+<!-- ===== 기타 SLAM ===== -->
+<section id="other-slam">
+  <h2>기타 SLAM 알고리즘</h2>
+
+  <p>RTAB-Map이 주력이지만, 코드베이스에는 3가지 다른 SLAM도 포함되어 있습니다.</p>
+
+  <table>
+    <thead>
+      <tr><th>SLAM</th><th>런치 파일</th><th>센서</th><th>특징</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Gmapping</strong></td>
+        <td><code>yahboomcar_nav/launch/map_gmapping_*.py</code><br>(라이다 종류별 분리: a1, s2, 4ROS)</td>
+        <td>라이다만</td>
+        <td>가장 간단한 2D SLAM. 파티클 필터 기반. 소규모 환경에 적합</td>
+      </tr>
+      <tr>
+        <td><strong>Cartographer</strong></td>
+        <td><code>yahboomcar_nav/launch/cartographer_launch.py</code><br>
+            설정: <code>params/lds_2d.lua</code></td>
+        <td>라이다만</td>
+        <td>Google의 그래프 기반 SLAM. 스캔 범위 0.1~8m, 루프 클로저 임계값 0.7.
+            <code>occupancy_grid_launch.py</code>로 Cartographer 출력을 점유 격자로 변환</td>
+      </tr>
+      <tr>
+        <td><strong>ORB-SLAM</strong></td>
+        <td><code>yahboomcar_slam/launch/orbslam_*.py</code><br>
+            설정: <code>params/mono.yaml</code>, <code>params/rgbd.yaml</code></td>
+        <td>카메라 (mono/RGBD)</td>
+        <td>시각적 특징(ORB) 기반 SLAM. 1000개 특징점, 8단계 피라미드.
+            3D 포인트클라우드 + Octomap 생성 가능</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="box box-warn">
+    <strong>실제 운영에서는 RTAB-Map만 사용</strong>
+    순찰 스크립트(<code>start_patrol.sh</code>), 지도 관리(<code>map_registry.py</code>),
+    데스크톱 단축키(<code>scripts/desktop/</code>) 등 운영 도구는 모두 RTAB-Map 전용으로 구축되어 있습니다.
+    Gmapping/Cartographer/ORB-SLAM은 실험 또는 비교용으로 남아 있습니다.
+  </div>
+</section>
+
+
+<!-- ===== 부록: OccupancyGrid ===== -->
+<section id="occupancy-grid">
+  <h2>부록: OccupancyGrid 셀 값의 의미</h2>
+
+  <p>RTAB-Map이 발행하는 <code>/map</code> 토픽은 <code>nav_msgs/OccupancyGrid</code> 메시지입니다.
+     각 셀은 0~100 또는 -1 값을 가집니다.</p>
+
+  <table>
+    <thead>
+      <tr><th>셀 값</th><th>RViz 색상</th><th>의미</th><th>Nav2 해석</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>0</code></td>
+        <td style="background:#fff; color:#333; text-align:center;">흰색</td>
+        <td>확실히 빈 공간 (로봇이 지나갈 수 있음)</td>
+        <td>이동 가능 영역</td>
+      </tr>
+      <tr>
+        <td><code>100</code></td>
+        <td style="background:#333; color:#fff; text-align:center;">검은색</td>
+        <td>확실히 장애물 (벽, 가구 등)</td>
+        <td>이동 불가 + 주변에 inflation 비용 부여</td>
+      </tr>
+      <tr>
+        <td><code>-1</code></td>
+        <td style="background:#aaa; color:#fff; text-align:center;">회색</td>
+        <td>미탐사 영역 (아직 센서가 닿지 않은 곳)</td>
+        <td>Nav2 설정에 따라 이동 허용 또는 차단</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>PGM 파일로 내보낼 때</h3>
+  <p><code>map_saver_cli</code>로 내보내면 <code>.yaml</code> + <code>.pgm</code> 파일 쌍이 생성됩니다.</p>
+  <ul>
+    <li>PGM 픽셀값 <strong>254~255</strong>: 빈 공간 (free, 밝음)</li>
+    <li>PGM 픽셀값 <strong>0~1</strong>: 장애물 (occupied, 어두움)</li>
+    <li>PGM 픽셀값 <strong>205</strong>: 미탐사 (unknown, 중간 밝기)</li>
+  </ul>
+  <p>YAML 파일에는 해상도(<code>resolution: 0.05</code>), 원점 좌표(<code>origin</code>),
+     점유 판정 임계값(<code>occupied_thresh: 0.65</code>, <code>free_thresh: 0.25</code>)이 기록됩니다.</p>
+</section>
+
+
+<!-- ===== 파일 색인 ===== -->
+<section id="file-index">
+  <h2>파일 색인</h2>
+
+  <h3>SLAM 런치 파일</h3>
+  <table>
+    <thead>
+      <tr><th>파일</th><th>역할</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>scripts/launch/rtabmap_managed.launch.py</code></td>
+        <td>RTAB-Map SLAM (DB 경로/삭제 설정 가능, 운영용)</td>
+      </tr>
+      <tr>
+        <td><code>scripts/launch/rtabmap_localization_managed.launch.py</code></td>
+        <td>RTAB-Map 로컬라이제이션 모드 (순찰용)</td>
+      </tr>
+      <tr>
+        <td><code>scripts/launch/rtabmap_viz_managed.launch.py</code></td>
+        <td>RTAB-Map 전용 시각화 도구</td>
+      </tr>
+      <tr>
+        <td><code>yahboomcar_nav/launch/rtabmap_sync_launch.py</code></td>
+        <td>RTAB-Map SLAM 원본 (SLAM/로컬라이제이션 모드 전환)</td>
+      </tr>
+      <tr>
+        <td><code>yahboomcar_nav/launch/laser_bringup_launch.py</code></td>
+        <td>로봇 + 라이다 하드웨어 시작</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>운영 스크립트</h3>
+  <table>
+    <thead>
+      <tr><th>파일</th><th>역할</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>scripts/start_rtabmap_new.sh</code></td><td>새 지도 생성 시작</td></tr>
+      <tr><td><code>scripts/start_rtabmap_continue.sh</code></td><td>기존 지도 이어서 매핑</td></tr>
+      <tr><td><code>scripts/rtabmap_mapping_core.sh</code></td><td>매핑 공통 로직 (카메라 → SLAM 순차 시작)</td></tr>
+      <tr><td><code>scripts/export_rtabmap_map.sh</code></td><td>/map 토픽 → nav_map.yaml/pgm 내보내기</td></tr>
+      <tr><td><code>scripts/start_patrol.sh</code></td><td>로컬라이제이션 + Nav2 + 순찰 통합 실행</td></tr>
+      <tr><td><code>scripts/map_registry.py</code></td><td>지도 DB 등록/조회/이름 변경</td></tr>
+      <tr><td><code>scripts/geofence_patrol.py</code></td><td>지도 기반 자율 순찰 (웨이포인트 자동 생성)</td></tr>
+      <tr><td><code>scripts/publish_initial_pose.py</code></td><td>RTAB-Map 위치를 AMCL에 주입</td></tr>
+    </tbody>
+  </table>
+
+  <h3>설정 파일</h3>
+  <table>
+    <thead>
+      <tr><th>파일</th><th>역할</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>yahboomcar_nav/params/rtabmap_nav_params.yaml</code></td><td>Nav2 전체 파라미터 (AMCL, costmap, controller)</td></tr>
+      <tr><td><code>yahboomcar_nav/params/lds_2d.lua</code></td><td>Cartographer 2D SLAM 설정</td></tr>
+      <tr><td><code>yahboomcar_slam/params/rgbd.yaml</code></td><td>ORB-SLAM RGBD 카메라 캘리브레이션</td></tr>
+    </tbody>
+  </table>
+
+  <h3>RViz 설정</h3>
+  <table>
+    <thead>
+      <tr><th>파일</th><th>용도</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>yahboomcar_nav/rviz/rtabmap_map.rviz</code></td><td>RTAB-Map 매핑 시각화 (주력)</td></tr>
+      <tr><td><code>yahboomcar_nav/rviz/rtabmap_nav.rviz</code></td><td>RTAB-Map + Nav2 내비게이션</td></tr>
+      <tr><td><code>yahboomcar_nav/rviz/map.rviz</code></td><td>정적 지도 표시 (Gmapping 등)</td></tr>
+      <tr><td><code>yahboomcar_nav/rviz/nav.rviz</code></td><td>일반 내비게이션</td></tr>
+      <tr><td><code>yahboomcar_rviz/rviz/mapping.rviz</code></td><td>매핑 범용</td></tr>
+      <tr><td><code>yahboomcar_slam/rviz/orbslam_pcl.rviz</code></td><td>ORB-SLAM 포인트클라우드</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</div>
+
+<footer>
+  ROSMASTER R2 Fork &mdash; SLAM 아키텍처 문서 &mdash; 2026-06-29
+</footer>
+
+</body>
+</html>

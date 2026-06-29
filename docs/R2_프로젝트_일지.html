@@ -194,6 +194,7 @@
     <li><a href="#fork">Fork란 무엇인가 — Upstream과의 관계</a></li>
     <li><a href="#structure">폴더 구조 — 두 개의 워크스페이스</a></li>
     <li><a href="#timeline">단계별로 한 일 (타임라인)</a></li>
+    <li><a href="#step7-guide">⑦ Native Humble 전환 — 초보자용 상세 설명</a></li>
     <li><a href="#problems">실제로 만난 문제와 해결</a></li>
     <li><a href="#docker-vs-native">핵심 결정: Docker vs Native Humble</a></li>
     <li><a href="#slam">SLAM 매핑이 동작하게 된 방법</a></li>
@@ -351,7 +352,7 @@
     </li>
     <li>
       <div class="step-title">⑦ Native Humble로 전환 (결정적 전환점)</div>
-      <p>Docker에서 라이다·SLAM 실행 시 GLIBC 오류 발견 → <code>native_ros_setup.bash</code> + <code>start_mapping.sh</code>(gmapping) 작성. 센서·매핑은 호스트 Humble만 사용.</p>
+      <p>Docker에서 라이다·SLAM 실행 시 GLIBC 오류 발견 → <code>native_ros_setup.bash</code> + <code>start_mapping.sh</code>(gmapping) 작성. 센서·매핑은 호스트 Humble만 사용. <a href="#step7-guide">초보자용 상세 설명 보기 ↓</a></p>
     </li>
     <li>
       <div class="step-title">⑧ Orbbec 카메라 연동</div>
@@ -374,6 +375,212 @@
       <p>배터리 충전 중 부팅, 비프음 없음. 바탕화면에서 매핑 시작 → 실시간 맵 화면 확인. 중지 아이콘으로 종료 (카메라 LED 대기 상태 확인).</p>
     </li>
   </ol>
+</section>
+
+<!-- 5-1. STEP 7 BEGINNER GUIDE -->
+<section id="step7-guide">
+  <h2>5-1. ⑦ Native Humble 전환 — 초보자용 상세 설명</h2>
+
+  <div class="box box-goal">
+    <strong>한 줄 요약</strong>
+    Docker 안에서 라이다·SLAM을 돌리려다 <strong>GLIBC 오류</strong>로 실패했습니다. 그래서 <strong>센서와 매핑은 Jetson 본체의 ROS2 Humble</strong>에서만 실행하기로 바꿨고, <code>native_ros_setup.bash</code>와 <code>start_mapping.sh</code>로 자동화했습니다.
+  </div>
+
+  <p>이 단계가 일지 전체에서 가장 중요한 <strong>갈림길</strong>입니다. ①~⑥까지는 "Docker로 빌드도 하고 실행도 하면 깔끔하겠지?"라는 기대가 있었지만, ⑦에서 <strong>빌드와 실행을 분리</strong>하는 방향으로 바뀌었습니다.</p>
+
+  <h3>⑦번이 나오기 전에 무슨 일이 있었나</h3>
+  <table>
+    <tr><th>단계</th><th>한 일</th><th>쉬운 말</th></tr>
+    <tr><td>①</td><td>Git fork 만들기</td><td>내 전용 복사본 repo로 코드 버전 관리</td></tr>
+    <tr><td>②</td><td>Google Drive <code>5.Code</code> 설치</td><td>Yahboom ROS2 패키지 22개를 fork 안에 넣음</td></tr>
+    <tr><td>③</td><td>Docker로 <code>colcon build</code></td><td>Docker 안에서 코드 <strong>컴파일</strong> — 18개 성공, 4개 스킵</td></tr>
+    <tr><td>④</td><td>빌드 오류 수정</td><td>fork 코드의 CMake, OpenCV 문제 고침</td></tr>
+    <tr><td>⑤</td><td>불필요 자동실행 끄기</td><td>Yahboom 폰앱이 시리얼 포트를 잡아 ROS와 충돌 → 끔</td></tr>
+    <tr><td>⑥</td><td><code>diagnose_robot.sh</code> 작성</td><td>매핑 전에 하드웨어·워크스페이스 점검</td></tr>
+    <tr><td><strong>⑦</strong></td><td><strong>Native Humble로 전환</strong></td><td><strong>여기서 방향이 바뀜</strong></td></tr>
+  </table>
+
+  <p>③에서 Docker <strong>빌드</strong>는 성공했기 때문에, 자연스럽게 Docker 안에서 <strong>라이다 + SLAM(지도 만들기) 실행</strong>도 시도했습니다. 그런데 안 됐습니다. 그게 ⑦번입니다.</p>
+
+  <h3>용어 정리</h3>
+
+  <h4>ROS2 Humble vs Docker Foxy</h4>
+  <p>로봇(Jetson)에는 두 가지 ROS 환경이 있습니다 (<a href="#hardware">섹션 2</a> 참고).</p>
+  <table>
+    <tr><th>이름</th><th>위치</th><th>역할</th></tr>
+    <tr>
+      <td><strong>Native Humble</strong></td>
+      <td>Jetson 본체 <code>/opt/ros/humble</code></td>
+      <td>로봇을 <strong>실제로 움직이고</strong>, 센서를 읽고, 매핑하는 <strong>실행 환경</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Docker Foxy</strong></td>
+      <td><code>yahboomtechnology/ros-foxy:4.0.7R2</code> 컨테이너</td>
+      <td>코드를 <strong>컴파일(빌드)</strong> 할 때 쓰는 <strong>개발용 상자</strong></td>
+    </tr>
+  </table>
+  <ul>
+    <li><strong>Native</strong> = 로봇 본체에 직접 설치된 것 (호스트)</li>
+    <li><strong>Docker</strong> = 격리된 가상 상자 안 (컨테이너)</li>
+  </ul>
+
+  <h4>SLAM / gmapping</h4>
+  <ul>
+    <li><strong>SLAM</strong> = 로봇이 움직이면서 "지금 어디 있지?"와 "주변 지도는 어떻게 생겼지?"를 <strong>동시에</strong> 계산하는 기술</li>
+    <li><strong>gmapping</strong> = SLAM 알고리즘 중 하나. <strong>라이다만</strong>으로 2D 지도를 만듦 (가볍고 테스트에 좋음)</li>
+  </ul>
+
+  <h4><code>library_ws</code> — 왜 이게 핵심인가</h4>
+  <p>로봇에 ROS 관련 코드가 <strong>두 군데</strong> 있습니다 (<a href="#structure">섹션 4</a>).</p>
+  <div class="diagram">~/yahboomcar_ros2_ws/          ← Yahboom 출하 시 깔린 원본 (아직 삭제 안 함)
+├── software/library_ws/       ← 라이다 드라이버, slam_gmapping, 카메라 드라이버 등
+└── yahboomcar_ws/             ← bringup, nav, launch 파일
+
+~/ROSMASTER-R2-fork/           ← 내가 만든 git 관리 fork
+├── code/yahboomcar_ros2_ws/   ← 수정한 ROS 패키지 소스
+└── scripts/                   ← 매핑·진단·Docker 스크립트</div>
+  <p><code>library_ws</code> 안에는 Yahboom이 <strong>미리 컴파일해 둔 실행 파일</strong>(바이너리)이 들어 있습니다. 예: 라이다 드라이버, <code>slam_gmapping</code>, <code>astra_camera</code>. 이 파일들은 <strong>Jetson 본체 OS 위에서</strong> 만들어졌기 때문에 <strong>본체에서만</strong> 잘 돌아갑니다.</p>
+
+  <h4>GLIBC 오류 — 무슨 뜻인가</h4>
+  <p><strong>GLIBC</strong>는 Linux의 기본 시스템 라이브러리입니다. 프로그램이 OS와 대화할 때 쓰는 "공용 도구상자"라고 보면 됩니다.</p>
+  <table>
+    <tr><th>환경</th><th>GLIBC</th><th>비유</th></tr>
+    <tr><td>Jetson 본체 (Native)</td><td><strong>2.35</strong></td><td>2024판 사전으로 쓴 문서</td></tr>
+    <tr><td>Docker Foxy 컨테이너</td><td>다른 버전</td><td>2020판 사전 환경</td></tr>
+  </table>
+  <p><code>library_ws</code> 실행 파일은 GLIBC 2.35 환경용입니다. Docker 안(다른 GLIBC)에서 실행하면 아래처럼 실패합니다:</p>
+  <pre><code>version `GLIBC_2.35' not found</code></pre>
+  <p>즉 "이 환경에는 필요한 시스템 라이브러리가 없다"는 뜻입니다. <strong>빌드(컴파일)</strong>는 Docker Foxy에서 해도 되지만, <strong>이미 만들어진 <code>library_ws</code> 실행 파일을 돌리는 것</strong>은 Docker에서 안 됩니다.</p>
+
+  <h3>⑦번에서 내린 결정</h3>
+  <table>
+    <tr><th>무엇을 하려는가?</th><th>어디서 실행?</th></tr>
+    <tr><td>코드 빌드 (<code>colcon build</code>)</td><td>Docker Foxy</td></tr>
+    <tr><td>라이다, 카메라, SLAM, 매핑</td><td><strong>Native Humble</strong> (Jetson 본체)</td></tr>
+  </table>
+
+  <div class="diagram">[당초 기대]
+  fork 코드 수정 → Docker Foxy에서 빌드(③ 성공)
+                → Docker Foxy에서 라이다+SLAM 실행  ❌ GLIBC 오류
+
+[⑦ 이후 현실]
+  fork 코드 수정 → Docker Foxy에서 빌드만 (컴파일용)
+                → Native Humble에서 실행 (센서·매핑용)
+                → native_ros_setup.bash (환경 준비)
+                → start_mapping.sh (gmapping) 또는 start_rtabmap_mapping.sh</div>
+
+  <h3>만든 스크립트 두 개</h3>
+
+  <h4>1. <code>native_ros_setup.bash</code> — "ROS 환경 켜기"</h4>
+  <p>요리 전에 가스레인지 켜고, 냄비·프라이팬 꺼내고, 재료 위치를 확인하는 단계입니다.</p>
+  <table>
+    <tr><th>하는 일</th><th>설명</th></tr>
+    <tr><td><code>source /opt/ros/humble/setup.bash</code></td><td>Jetson 본체의 ROS2 Humble 켜기</td></tr>
+    <tr><td><code>source library_ws/install/setup.bash</code></td><td>라이다·gmapping·카메라 드라이버 경로 등록</td></tr>
+    <tr><td><code>source yahboomcar_ws/install/setup.bash</code></td><td>launch 파일·nav 패키지 경로 등록</td></tr>
+    <tr><td><code>ROS_DOMAIN_ID=28</code></td><td>이 로봇만의 ROS 통신 채널 번호</td></tr>
+    <tr><td><code>ROBOT_TYPE=r2</code></td><td>R2 로봇이라고 알려줌</td></tr>
+    <tr><td><code>RPLIDAR_TYPE=4ROS</code></td><td>YDLIDAR 4ROS 라이다 사용</td></tr>
+    <tr><td><code>CAMERA_TYPE=astraplus</code></td><td>Orbbec Astra Plus 카메라 사용</td></tr>
+  </table>
+  <p>경로는 <code>run_docker_env.sh</code>에서 정해집니다:</p>
+  <ul>
+    <li><code>LIBRARY_WS_HOST</code> → <code>~/yahboomcar_ros2_ws/software/library_ws</code></li>
+    <li><code>NATIVE_WS_HOST</code> → <code>~/yahboomcar_ros2_ws/yahboomcar_ws</code></li>
+  </ul>
+  <pre><code>source /opt/ros/humble/setup.bash
+source ~/yahboomcar_ros2_ws/software/library_ws/install/setup.bash
+source ~/yahboomcar_ros2_ws/yahboomcar_ws/install/setup.bash
+export ROS_DOMAIN_ID=28
+export ROBOT_TYPE=r2
+export RPLIDAR_TYPE=4ROS
+export CAMERA_TYPE=astraplus</code></pre>
+
+  <h4>2. <code>start_mapping.sh</code> — "라이다 매핑 시작"</h4>
+  <ol>
+    <li>Yahboom 폰앱(<code>rosmaster_main.py</code>)이 시리얼 포트를 잡고 있으면 끔 (⑤번 문제 대응)</li>
+    <li><code>native_ros_setup.bash</code>로 환경 준비</li>
+    <li><code>ros2 launch yahboomcar_nav map_gmapping_4ros_launch.py</code> 실행</li>
+  </ol>
+  <p>launch 파일 안에서는 <strong>라이다 드라이버 시작</strong> + <strong>gmapping SLAM 노드</strong>를 띄웁니다. 라이다 데이터(<code>/scan</code>)를 읽어 지도를 그립니다.</p>
+  <pre><code>bash ~/ROSMASTER-R2-fork/scripts/start_mapping.sh</code></pre>
+
+  <h3>직접 따라 해보기 (로봇 Jetson에서)</h3>
+  <ol>
+    <li>
+      <strong>사전 확인</strong>
+      <pre><code>ls /opt/ros/humble/setup.bash
+ls ~/yahboomcar_ros2_ws/software/library_ws/install/setup.bash</code></pre>
+      <p>둘 다 있어야 Native Humble 실행이 가능합니다.</p>
+    </li>
+    <li>
+      <strong>fork 최신 코드 받기</strong>
+      <pre><code>cd ~/ROSMASTER-R2-fork
+bash scripts/update_code.sh</code></pre>
+    </li>
+    <li>
+      <strong>하드웨어 진단 (⑥번)</strong>
+      <pre><code>bash ~/ROSMASTER-R2-fork/scripts/diagnose_robot.sh</code></pre>
+      <p>라이다(<code>/dev/ydlidar</code>), 시리얼(<code>/dev/myserial</code>) 등이 보이는지 확인.</p>
+    </li>
+    <li>
+      <strong>기존 프로세스 정리</strong>
+      <pre><code>bash ~/ROSMASTER-R2-fork/scripts/stop_robot_stack.sh</code></pre>
+    </li>
+    <li>
+      <strong>라이다만 매핑 (⑦번 결과물)</strong>
+      <pre><code>bash ~/ROSMASTER-R2-fork/scripts/start_mapping.sh</code></pre>
+    </li>
+    <li>
+      <strong>잘 되는지 확인 (다른 터미널)</strong>
+      <pre><code>source ~/ROSMASTER-R2-fork/scripts/native_ros_setup.bash
+ros2 topic list | grep scan
+ros2 topic hz /scan</code></pre>
+      <p><code>/scan</code> 토픽이 약 10Hz로 나오면 라이다가 동작 중입니다.</p>
+    </li>
+    <li>
+      <strong>중지</strong>
+      <pre><code>bash ~/ROSMASTER-R2-fork/scripts/stop_robot_stack.sh</code></pre>
+      <p>또는 매핑 터미널에서 <code>Ctrl+C</code>.</p>
+    </li>
+  </ol>
+
+  <h3>⑦ 이후 단계와의 관계</h3>
+  <table>
+    <tr><th>단계</th><th>내용</th><th>⑦과의 관계</th></tr>
+    <tr><td>⑧</td><td>Orbbec 카메라 연동</td><td>같은 Native Humble + <code>library_ws</code>의 <code>astra_camera</code></td></tr>
+    <tr><td>⑨</td><td>RTAB-Map (카메라+라이다)</td><td>더 풍부한 지도. <strong>실제로 성공한 방식</strong></td></tr>
+    <tr><td>⑩</td><td>바탕화면 아이콘</td><td><code>start_mapping.sh</code>도 아이콘으로 등록</td></tr>
+    <tr><td>⑫</td><td>실제 매핑 테스트 성공</td><td>⑦의 결정이 맞았다는 확인</td></tr>
+  </table>
+
+  <h3>자주 헷갈리는 점</h3>
+  <table>
+    <tr><th>질문</th><th>답</th></tr>
+    <tr>
+      <td>fork(<code>~/ROSMASTER-R2-fork</code>)만 있으면 되나?</td>
+      <td>아직은 <strong>아닙니다</strong>. <code>library_ws</code> 실행 파일이 <code>~/yahboomcar_ros2_ws</code>에 있어서 원본 폴더가 필요합니다. (<a href="#current">섹션 11</a> "아직 안 한 것" 참고)</td>
+    </tr>
+    <tr>
+      <td>Docker는 이제 안 쓰나?</td>
+      <td><strong>빌드할 때는</strong> 여전히 씁니다 (<code>run_docker_build.sh</code>). <strong>센서·매핑 실행</strong>은 Native Humble만 씁니다.</td>
+    </tr>
+    <tr>
+      <td><code>docker_ros_setup.bash</code> vs <code>native_ros_setup.bash</code>?</td>
+      <td>같은 역할(환경 변수 설정)이지만 다른 세계용. Docker=Foxy, Native=Humble.</td>
+    </tr>
+    <tr>
+      <td>gmapping vs RTAB-Map?</td>
+      <td>⑦은 <strong>gmapping으로 Native 전환이 맞는지 검증</strong>한 단계. 집 실내 SLAM은 이후 <strong>RTAB-Map(⑨)</strong>이 더 잘 됐습니다. 둘 다 Native Humble에서 실행합니다.</td>
+    </tr>
+  </table>
+
+  <div class="box box-ok">
+    <strong>한 문장으로 정리</strong>
+    ⑦ Native Humble로 전환 = Docker에서 라이다·SLAM 실행이 GLIBC 때문에 실패 → <strong>센서와 매핑은 Jetson 본체 ROS2 Humble에서만</strong> 돌리기로 결정 → <code>native_ros_setup.bash</code> + <code>start_mapping.sh</code>로 자동화.
+  </div>
+
+  <p>더 자세한 기술 결정은 <a href="#docker-vs-native">섹션 7. Docker vs Native Humble</a>을, 실제 매핑 방법은 <a href="#slam">섹션 8. SLAM</a>을 참고하세요.</p>
 </section>
 
 <!-- 6. PROBLEMS -->
@@ -462,7 +669,7 @@
 <section id="docker-vs-native">
   <h2>7. 핵심 결정: Docker vs Native Humble</h2>
 
-  <p>이 프로젝트에서 가장 중요한 기술적 깨달음입니다.</p>
+  <p>이 프로젝트에서 가장 중요한 기술적 깨달음입니다. 초보자라면 먼저 <a href="#step7-guide">5-1. ⑦ Native Humble 전환 — 초보자용 상세 설명</a>을 읽어보세요.</p>
 
   <table>
     <tr><th>용도</th><th>환경</th><th>이유</th></tr>
