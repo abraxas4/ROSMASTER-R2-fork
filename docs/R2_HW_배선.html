@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROSMASTER R2 — HW 배선</title>
+  <style>
+    :root {
+      --bg: #f8f9fb;
+      --card: #ffffff;
+      --text: #1a1d26;
+      --muted: #5c6370;
+      --accent: #2563eb;
+      --accent-light: #dbeafe;
+      --ok: #059669;
+      --ok-bg: #d1fae5;
+      --warn: #d97706;
+      --warn-bg: #fef3c7;
+      --err: #dc2626;
+      --err-bg: #fee2e2;
+      --border: #e2e8f0;
+      --code-bg: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.75;
+      color: var(--text);
+      background: var(--bg);
+      margin: 0;
+      padding: 0;
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+    header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: #fff;
+      padding: 2.5rem 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 0 0 1rem 1rem;
+    }
+    header h1 { margin: 0 0 0.5rem; font-size: 1.75rem; font-weight: 700; }
+    header .sub { opacity: 0.9; font-size: 0.95rem; }
+    header .meta { margin-top: 1rem; font-size: 0.85rem; opacity: 0.8; }
+    nav.toc {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+    nav.toc h2 { margin: 0 0 0.75rem; font-size: 1rem; color: var(--muted); }
+    nav.toc ol { margin: 0; padding-left: 1.25rem; }
+    nav.toc a { color: var(--accent); text-decoration: none; }
+    nav.toc a:hover { text-decoration: underline; }
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.5rem;
+    }
+    h2 { font-size: 1.35rem; margin: 0 0 1rem; color: #0f172a; border-bottom: 2px solid var(--accent-light); padding-bottom: 0.4rem; }
+    h3 { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; color: #334155; }
+    h4 { font-size: 1rem; margin: 1rem 0 0.5rem; }
+    p { margin: 0.6rem 0; }
+    ul, ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+    li { margin: 0.35rem 0; }
+    code, pre {
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 0.88em;
+    }
+    code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 0.25rem;
+    }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem 1.25rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      margin: 0.75rem 0;
+    }
+    pre code { background: none; padding: 0; color: inherit; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      margin: 1rem 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f1f5f9; font-weight: 600; }
+    tr:nth-child(even) td { background: #fafbfc; }
+    .box {
+      border-radius: 0.5rem;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      border-left: 4px solid;
+    }
+    .box-goal { background: var(--accent-light); border-color: var(--accent); }
+    .box-ok { background: var(--ok-bg); border-color: var(--ok); }
+    .box-warn { background: var(--warn-bg); border-color: var(--warn); }
+    .box-err { background: var(--err-bg); border-color: var(--err); }
+    .box strong { display: block; margin-bottom: 0.35rem; }
+    .diagram {
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    /* Architecture overview (CSS boxes — avoids CJK monospace misalignment) */
+    .arch {
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 0.5rem;
+      padding: 1.25rem 1rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+    .arch-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      justify-content: center;
+      gap: 0.5rem 0.35rem;
+    }
+    .arch-col {
+      display: flex;
+      flex-direction: column;
+      min-width: 10.5rem;
+      max-width: 14rem;
+      flex: 1 1 10.5rem;
+    }
+    .arch-col-label {
+      text-align: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+      margin-bottom: 0.5rem;
+      text-transform: none;
+    }
+    .arch-box {
+      border: 2px solid #94a3b8;
+      border-radius: 0.5rem;
+      background: #fff;
+      padding: 0.65rem 0.75rem;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .arch-box.sensor { border-color: #d97706; background: #fffbeb; }
+    .arch-box.slam   { border-color: #2563eb; background: #eff6ff; }
+    .arch-box.viz    { border-color: #7c3aed; background: #f5f3ff; }
+    .arch-box.nav    { border-color: #059669; background: #ecfdf5; }
+    .arch-box.db {
+      border-color: #64748b;
+      background: #f1f5f9;
+      border-style: dashed;
+      margin-top: 0.65rem;
+      text-align: center;
+      font-size: 0.8rem;
+      flex: 0 0 auto;
+    }
+    .arch-box .title {
+      font-weight: 700;
+      font-size: 0.88rem;
+      margin-bottom: 0.35rem;
+      color: #0f172a;
+    }
+    .arch-box ul {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.8rem;
+      color: #334155;
+    }
+    .arch-box li { margin: 0.15rem 0; }
+    .arch-box .out {
+      margin-top: 0.4rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .arch-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      font-size: 1.35rem;
+      font-weight: 700;
+      flex: 0 0 auto;
+      padding: 0 0.15rem;
+      align-self: center;
+      line-height: 1;
+      user-select: none;
+    }
+    .arch-arrow.down {
+      width: 100%;
+      padding: 0.35rem 0 0;
+      font-size: 1.1rem;
+    }
+    .arch-sinks {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+    }
+    @media (max-width: 720px) {
+      .arch-arrow:not(.down) {
+        width: 100%;
+        transform: rotate(90deg);
+        padding: 0.15rem 0;
+      }
+      .arch-col { max-width: none; }
+    }
+    /* Beginner: ROS2 + byte streams */
+    /* --- Isometric 3D cube tower (SVG) --- */
+    .cube3d-wrap {
+      margin: 1.25rem 0 1.5rem;
+      background: linear-gradient(165deg, #eef2ff 0%, #f8fafc 45%, #ecfdf5 100%);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.15rem 0.75rem 1.25rem;
+      overflow: hidden;
+    }
+    .cube3d-wrap .fig-caption {
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 0.25rem;
+    }
+    .cube3d-wrap .fig-sub {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+    }
+    .iso-svg {
+      display: block;
+      width: 100%;
+      max-width: 640px;
+      height: auto;
+      margin: 0 auto;
+    }
+    .who-svg {
+      display: block;
+      width: 100%;
+      max-width: 720px;
+      height: auto;
+      margin: 0.5rem auto 0;
+    }
+    .who-wrap {
+      margin: 1.25rem 0 1.5rem;
+      background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 50%, #f0fdf4 100%);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.15rem 0.75rem 1.25rem;
+    }
+    .who-wrap .fig-caption {
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 0.25rem;
+    }
+    .who-wrap .fig-sub {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+    }
+    .layer-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      margin: 1rem 0;
+    }
+    .layer {
+      border: 2px solid var(--border);
+      border-radius: 0.6rem;
+      padding: 0.85rem 1rem;
+      background: #fff;
+    }
+    .layer-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.4rem 0.75rem;
+      margin-bottom: 0.4rem;
+    }
+    .layer-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.6rem;
+      height: 1.6rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #fff;
+      background: #64748b;
+    }
+    .layer-title { font-weight: 700; font-size: 0.95rem; color: #0f172a; }
+    .layer-wire {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    }
+    .layer p { margin: 0.25rem 0 0; font-size: 0.88rem; color: #334155; }
+    .layer.L1 { border-color: #d97706; background: #fffbeb; }
+    .layer.L1 .layer-num { background: #d97706; }
+    .layer.L2 { border-color: #2563eb; background: #eff6ff; }
+    .layer.L2 .layer-num { background: #2563eb; }
+    .layer.L3 { border-color: #7c3aed; background: #f5f3ff; }
+    .layer.L3 .layer-num { background: #7c3aed; }
+    .layer.L4 { border-color: #059669; background: #ecfdf5; }
+    .layer.L4 .layer-num { background: #059669; }
+    .ros2-flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      justify-content: center;
+      gap: 0.45rem;
+      margin: 1rem 0;
+    }
+    .ros2-card {
+      border: 2px solid #94a3b8;
+      border-radius: 0.5rem;
+      background: #fff;
+      padding: 0.7rem 0.85rem;
+      min-width: 8.5rem;
+      max-width: 12rem;
+      flex: 1 1 8.5rem;
+      font-size: 0.84rem;
+    }
+    .ros2-card .title { font-weight: 700; margin-bottom: 0.3rem; color: #0f172a; }
+    .ros2-card.pub { border-color: #2563eb; background: #eff6ff; }
+    .ros2-card.bus { border-color: #64748b; background: #f8fafc; border-style: dashed; text-align: center; }
+    .ros2-card.sub { border-color: #059669; background: #ecfdf5; }
+    .byte-frame {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin: 0.75rem 0 0.35rem;
+      align-items: stretch;
+    }
+    .byte-cell {
+      border: 2px solid #94a3b8;
+      border-radius: 0.4rem;
+      padding: 0.45rem 0.5rem;
+      text-align: center;
+      min-width: 4.2rem;
+      flex: 1 1 4.2rem;
+      background: #fff;
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+    .byte-cell .bname {
+      display: block;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #0f172a;
+      margin-bottom: 0.15rem;
+    }
+    .byte-cell .bex {
+      display: block;
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 0.72rem;
+      color: #475569;
+      word-break: break-all;
+    }
+    .byte-cell.sync { border-color: #dc2626; background: #fef2f2; }
+    .byte-cell.len  { border-color: #d97706; background: #fffbeb; }
+    .byte-cell.cmd  { border-color: #2563eb; background: #eff6ff; }
+    .byte-cell.payload { border-color: #7c3aed; background: #f5f3ff; flex: 2 1 7rem; }
+    .byte-cell.chk  { border-color: #059669; background: #ecfdf5; }
+    .note-mini {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin: 0.35rem 0 0.75rem;
+    }
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+    @media (max-width: 640px) {
+      .compare-grid { grid-template-columns: 1fr; }
+    }
+    .compare-card {
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.85rem 1rem;
+      background: #fafbfc;
+      font-size: 0.88rem;
+    }
+    .compare-card h4 { margin: 0 0 0.4rem; font-size: 0.92rem; }
+    .compare-card ul { margin: 0.25rem 0 0; padding-left: 1.15rem; }
+    .compare-card li { margin: 0.2rem 0; }
+    .tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-weight: 600;
+      margin-right: 0.25rem;
+    }
+    .tag-slam { background: #dbeafe; color: #1d4ed8; }
+    .tag-nav { background: #d1fae5; color: #065f46; }
+    .tag-viz { background: #ede9fe; color: #5b21b6; }
+    .tag-sensor { background: #fef3c7; color: #92400e; }
+    .tag-ros { background: #dbeafe; color: #1e40af; }
+    .tag-hw { background: #ffedd5; color: #9a3412; }
+    .kw-table code {
+      user-select: all;
+      cursor: text;
+      white-space: nowrap;
+    }
+    .kw-table td:first-child { width: 28%; font-weight: 600; }
+    .uml-wrap {
+      margin: 1rem 0;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1rem 0.75rem 1.25rem;
+      overflow-x: auto;
+    }
+    .uml-wrap .fig-caption {
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin: 0 0 0.75rem;
+      color: #0f172a;
+    }
+    .uml-svg { display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; }
+    .plantuml-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem 1.15rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      margin: 0.75rem 0;
+    }
+    .plantuml-block code { background: none; color: inherit; padding: 0; font-size: inherit; }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.82rem;
+      padding: 2rem 0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>ROSMASTER R2 — HW 배선</h1>
+    <div class="sub">STM32 보드 · USB HUB · Jetson · 전원/USB · 센서 케이블</div>
+    <div class="meta">최종 갱신: 2026-07-25</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc" style="margin-bottom:1rem;">
+  <h2>문서 세트</h2>
+  <ol>
+    <li><a href="R2_SLAM_아키텍처.html">SLAM 아키텍처 (상위 · 응용)</a></li>
+    <li><a href="R2_HW_배선.html">HW 배선 (물리 · 보드)</a></li>
+    <li><a href="R2_ROS2_레이어_low.html">ROS2 하위 레이어 (통신 · 코드)</a></li>
+  </ol>
+</nav>
+
+
+<nav class="toc">
+  <h2>목차</h2>
+  <ol>
+    <li><a href="#hw-overview">보드 구성</a></li>
+    <li><a href="#hw-wiring">배선 그림 · 표</a></li>
+  </ol>
+</nav>
+
+<section id="hw-overview">
+  <h2>보드 구성</h2>
+  <p>R2 차체 쪽 보드는 역할이 나뉩니다. <strong>STM32 보드</strong>와 <strong>USB HUB 보드</strong>는 별도 PCB이며,
+     둘 사이에 2핀(+/-) 전원과 USB(시리얼)가 연결됩니다. 카메라·라이다는 HUB를 거쳐 Jetson으로 갑니다.</p>
+</section>
+<section id="hw-wiring">
+  <h2>배선 그림 · 표</h2>
+<div class="box box-goal" style="margin-top:0.25rem;">
+    <strong>데이터 경로 요약</strong>
+    <p style="margin:0 0 0.5rem;">
+      ROS2 노드 간(④)은 주로 <strong>같은 Jetson 프로세스</strong>끼리 DDS. 다른 PC와도 가능.
+    </p>
+    <p style="margin:0;">
+      물리: <strong>ROS/STM32 보드</strong>와 <strong>USB HUB 보드</strong>는 별도 PCB.
+      둘 사이 — <strong>2핀 하네스 (+/− 전원)</strong> 와 <strong>USB(차체 시리얼 데이터)</strong>.
+      카메라·라이다는 HUB → Jetson. 모터 등은 STM32 보드. HDMI는 Jetson.
+      참고: 소개 매뉴얼 Wiring diagram · 실물 실크 <code>+</code>/<code>-</code>.
+    </p>
+  </div>
+
+  <!-- 물리 배선: STM32 보드 ↔ USB HUB 보드 명시 -->
+  <div class="who-wrap">
+    <p class="fig-caption">그림 · 물리 배선 (STM32 보드 · USB HUB · Jetson)</p>
+    <p class="fig-sub">두 PCB는 별개 · 사이: 2핀(+/-) 전원 + USB 시리얼 · 센서는 HUB로만</p>
+
+    <svg class="who-svg" viewBox="0 0 780 460" xmlns="http://www.w3.org/2000/svg" role="img"
+         aria-label="STM32보드와 USB HUB 보드 사이에 2핀 전원과 USB, 센서는 HUB 경유 Jetson">
+      <defs>
+        <marker id="arrO" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#ea580c"/>
+        </marker>
+        <marker id="arrB" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#0284c7"/>
+        </marker>
+        <marker id="arrG" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#059669"/>
+        </marker>
+        <marker id="arrP" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#7c3aed"/>
+        </marker>
+      </defs>
+
+      <!-- headers -->
+      <text x="80" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">장치</text>
+      <text x="280" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">보드 (별도 PCB 2장)</text>
+      <text x="520" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">Jetson</text>
+      <text x="680" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">출력</text>
+
+      <!-- ===== sensors left ===== -->
+      <rect x="24" y="40" width="112" height="42" rx="8" fill="#fff" stroke="#0284c7" stroke-width="2"/>
+      <text x="80" y="58" text-anchor="middle" font-size="12" font-weight="800" fill="#075985"
+            font-family="Pretendard, Noto Sans KR, sans-serif">Depth Camera</text>
+      <text x="80" y="72" text-anchor="middle" font-size="9" fill="#0c4a6e"
+            font-family="Pretendard, Noto Sans KR, sans-serif">깊이 카메라</text>
+
+      <rect x="24" y="92" width="112" height="42" rx="8" fill="#fff" stroke="#0284c7" stroke-width="2"/>
+      <text x="80" y="110" text-anchor="middle" font-size="12" font-weight="800" fill="#075985"
+            font-family="Pretendard, Noto Sans KR, sans-serif">Lidar</text>
+      <text x="80" y="124" text-anchor="middle" font-size="9" fill="#0c4a6e"
+            font-family="Pretendard, Noto Sans KR, sans-serif">4ROS / A1</text>
+
+      <path d="M136 61 L200 100" stroke="#0284c7" stroke-width="2.3" fill="none" marker-end="url(#arrB)"/>
+      <path d="M136 113 L200 110" stroke="#0284c7" stroke-width="2.3" fill="none" marker-end="url(#arrB)"/>
+      <text x="155" y="80" font-size="10" font-weight="800" fill="#0284c7"
+            font-family="Pretendard, Noto Sans KR, sans-serif">USB</text>
+
+      <!-- motors / battery left bottom -->
+      <rect x="24" y="230" width="112" height="40" rx="8" fill="#fff" stroke="#ea580c" stroke-width="2"/>
+      <text x="80" y="254" text-anchor="middle" font-size="12" font-weight="800" fill="#c2410c"
+            font-family="Pretendard, Noto Sans KR, sans-serif">모터 · 조향</text>
+
+      <rect x="24" y="280" width="112" height="36" rx="8" fill="#fff" stroke="#ea580c" stroke-width="2"/>
+      <text x="80" y="302" text-anchor="middle" font-size="12" font-weight="800" fill="#c2410c"
+            font-family="Pretendard, Noto Sans KR, sans-serif">배터리</text>
+
+      <path d="M136 250 L200 250" stroke="#ea580c" stroke-width="2.3" fill="none" marker-end="url(#arrO)"/>
+      <path d="M136 298 L200 270" stroke="#ea580c" stroke-width="2.3" fill="none" marker-end="url(#arrO)"/>
+
+      <!-- ===== USB HUB board (top center) ===== -->
+      <rect x="200" y="48" width="200" height="100" rx="10" fill="#e0f2fe" stroke="#0284c7" stroke-width="2.5"/>
+      <text x="300" y="74" text-anchor="middle" font-size="12" font-weight="800" fill="#075985"
+            font-family="Pretendard, Noto Sans KR, sans-serif">USB HUB 보드</text>
+      <text x="300" y="94" text-anchor="middle" font-size="11" font-weight="700" fill="#0369a1"
+            font-family="Pretendard, Noto Sans KR, sans-serif">USB HUB expansion board</text>
+      <text x="300" y="114" text-anchor="middle" font-size="9" fill="#0c4a6e"
+            font-family="Pretendard, Noto Sans KR, sans-serif">카메라·라이다·MCU USB 포트</text>
+      <text x="300" y="132" text-anchor="middle" font-size="9" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">별도 PCB</text>
+
+      <!-- ===== STM32 board (bottom center) ===== -->
+      <rect x="200" y="220" width="200" height="110" rx="10" fill="#ffedd5" stroke="#ea580c" stroke-width="2.5"/>
+      <text x="300" y="246" text-anchor="middle" font-size="12" font-weight="800" fill="#c2410c"
+            font-family="Pretendard, Noto Sans KR, sans-serif">STM32 보드</text>
+      <text x="300" y="266" text-anchor="middle" font-size="11" font-weight="700" fill="#9a3412"
+            font-family="Pretendard, Noto Sans KR, sans-serif">ROS robot expansion board</text>
+      <text x="300" y="286" text-anchor="middle" font-size="10" fill="#b45309"
+            font-family="Pretendard, Noto Sans KR, sans-serif">온보드 STM32 · 모터 드라이버</text>
+      <text x="300" y="304" text-anchor="middle" font-size="9" fill="#78716c"
+            font-family="Pretendard, Noto Sans KR, sans-serif">IMU · RGB · 서보 · 부저 · 전원</text>
+      <text x="300" y="320" text-anchor="middle" font-size="9" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">별도 PCB</text>
+
+      <!-- ===== interconnect between the two PCBs ===== -->
+      <!-- 2-pin power -->
+      <path d="M260 148 L260 220" stroke="#dc2626" stroke-width="3" fill="none" marker-end="url(#arrO)"/>
+      <path d="M260 220 L260 148" stroke="#dc2626" stroke-width="1.5" fill="none" opacity="0.35"/>
+      <rect x="188" y="168" width="72" height="36" rx="4" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="224" y="184" text-anchor="middle" font-size="10" font-weight="800" fill="#b91c1c"
+            font-family="Pretendard, Noto Sans KR, sans-serif">2핀 하네스</text>
+      <text x="224" y="198" text-anchor="middle" font-size="10" font-weight="800" fill="#b91c1c"
+            font-family="Pretendard, Noto Sans KR, sans-serif">+ / − 전원</text>
+
+      <!-- USB data -->
+      <path d="M340 148 L340 220" stroke="#7c3aed" stroke-width="3" fill="none" marker-end="url(#arrP)"/>
+      <path d="M340 220 L340 148" stroke="#7c3aed" stroke-width="1.5" fill="none" opacity="0.35"/>
+      <rect x="348" y="168" width="88" height="36" rx="4" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="392" y="184" text-anchor="middle" font-size="10" font-weight="800" fill="#5b21b6"
+            font-family="Pretendard, Noto Sans KR, sans-serif">USB 케이블</text>
+      <text x="392" y="198" text-anchor="middle" font-size="9" font-weight="700" fill="#6d28d9"
+            font-family="Pretendard, Noto Sans KR, sans-serif">MCU 시리얼</text>
+
+      <text x="300" y="210" text-anchor="middle" font-size="9" font-weight="700" fill="#57534e"
+            font-family="Pretendard, Noto Sans KR, sans-serif">↑ 두 보드 사이 (실물)</text>
+
+      <!-- HUB → Jetson USB uplink -->
+      <path d="M400 98 L460 160" stroke="#0284c7" stroke-width="2.6" fill="none" marker-end="url(#arrB)"/>
+      <text x="430" y="118" font-size="10" font-weight="800" fill="#0284c7"
+            font-family="Pretendard, Noto Sans KR, sans-serif">USB 업링크</text>
+
+      <!-- note: serial appears as device via hub -->
+      <text x="430" y="200" font-size="9" fill="#7c3aed"
+            font-family="Pretendard, Noto Sans KR, sans-serif">시리얼도 HUB 경유</text>
+      <text x="430" y="214" font-size="9" fill="#7c3aed"
+            font-family="Pretendard, Noto Sans KR, sans-serif">→ /dev/myserial</text>
+
+      <!-- Jetson -->
+      <rect x="460" y="90" width="150" height="220" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="2.5"/>
+      <text x="535" y="120" text-anchor="middle" font-size="14" font-weight="800" fill="#1e3a8a"
+            font-family="Pretendard, Noto Sans KR, sans-serif">Jetson</text>
+      <text x="535" y="140" text-anchor="middle" font-size="11" font-weight="700" fill="#1d4ed8"
+            font-family="Pretendard, Noto Sans KR, sans-serif">Nano / Orin</text>
+      <text x="535" y="162" text-anchor="middle" font-size="10" fill="#334155"
+            font-family="Pretendard, Noto Sans KR, sans-serif">ROS2 · 드라이버</text>
+      <line x1="480" y1="176" x2="590" y2="176" stroke="#bfdbfe"/>
+      <text x="535" y="198" text-anchor="middle" font-size="10" fill="#0369a1"
+            font-family="Pretendard, Noto Sans KR, sans-serif">USB 호스트</text>
+      <text x="535" y="216" text-anchor="middle" font-size="9" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">cam / lidar</text>
+      <text x="535" y="232" text-anchor="middle" font-size="9" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">+ MCU 시리얼</text>
+      <text x="535" y="260" text-anchor="middle" font-size="9" fill="#c2410c"
+            font-family="Pretendard, Noto Sans KR, sans-serif">Rosmaster_Lib</text>
+      <text x="535" y="276" text-anchor="middle" font-size="9" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">/dev/myserial</text>
+      <text x="535" y="300" text-anchor="middle" font-size="9" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">HDMI →</text>
+
+      <!-- monitor -->
+      <rect x="640" y="120" width="110" height="56" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+      <text x="695" y="144" text-anchor="middle" font-size="12" font-weight="800" fill="#065f46"
+            font-family="Pretendard, Noto Sans KR, sans-serif">모니터</text>
+      <text x="695" y="162" text-anchor="middle" font-size="10" fill="#047857"
+            font-family="Pretendard, Noto Sans KR, sans-serif">HDMI</text>
+      <path d="M610 148 L638 148" stroke="#059669" stroke-width="2.2" fill="none" marker-end="url(#arrG)"/>
+
+      <!-- optional: 5V power Jetson from STM32 board (manual) -->
+      <path d="M400 300 C430 340 450 300 460 280" stroke="#ea580c" stroke-width="1.8" fill="none"
+            stroke-dasharray="4 3" marker-end="url(#arrO)"/>
+      <text x="420" y="330" font-size="9" fill="#c2410c"
+            font-family="Pretendard, Noto Sans KR, sans-serif">5V 전원(매뉴얼)</text>
+      <text x="420" y="344" font-size="8" fill="#9a3412"
+            font-family="Pretendard, Noto Sans KR, sans-serif">보드→Jetson 가능</text>
+
+      <!-- interconnect table strip -->
+      <rect x="16" y="360" width="748" height="88" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="28" y="382" font-size="12" font-weight="800" fill="#0f172a"
+            font-family="Pretendard, Noto Sans KR, sans-serif">STM32 보드 ↔ USB HUB 보드 (실물)</text>
+      <text x="28" y="402" font-size="11" fill="#334155"
+            font-family="Pretendard, Noto Sans KR, sans-serif">
+        • 2핀 하네스: 실크 + / − → 전원 (HUB 급전)
+      </text>
+      <text x="28" y="420" font-size="11" fill="#334155"
+            font-family="Pretendard, Noto Sans KR, sans-serif">
+        • USB: STM32 USB-시리얼(차체 명령·IMU 등) · 코드: Rosmaster_Lib · /dev/myserial
+      </text>
+      <text x="28" y="438" font-size="11" fill="#334155"
+            font-family="Pretendard, Noto Sans KR, sans-serif">
+        • 카메라·라이다 USB → HUB만 (STM32 데이터 경로 아님) · HUB 업링크 → Jetson
+      </text>
+    </svg>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>연결</th><th>역할</th><th>코드/장치</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>STM32 보드 ↔ USB HUB · <strong>2핀 (+/−)</strong></td>
+        <td>전원 (HUB 및 USB 장치 급전)</td>
+        <td>소프트웨어 없음</td>
+      </tr>
+      <tr>
+        <td>STM32 보드 ↔ USB HUB · <strong>USB</strong></td>
+        <td>MCU USB-시리얼 (모터 명령, IMU, 전압…)</td>
+        <td><code>Rosmaster_Lib</code> · <code>/dev/myserial</code> · <code>Ackman_driver_R2</code></td>
+      </tr>
+      <tr>
+        <td>Camera / Lidar → USB HUB · USB</td>
+        <td>센서 데이터</td>
+        <td><code>astra_camera</code> · <code>ydlidar_ros2_driver</code> / <code>sllidar_ros2</code></td>
+      </tr>
+      <tr>
+        <td>USB HUB → Jetson · USB 업링크</td>
+        <td>호스트가 장치 열거</td>
+        <td>cam · lidar · 시리얼 장치가 Jetson에 보임</td>
+      </tr>
+      <tr>
+        <td>STM32 보드 → 모터·배터리</td>
+        <td>차체 구동·전원 입력</td>
+        <td>보드 펌웨어 + <code>set_car_motion</code> 등</td>
+      </tr>
+      <tr>
+        <td>Jetson → 모니터 · HDMI</td>
+        <td>화면 출력</td>
+        <td>—</td>
+      </tr>
+    </tbody>
+  </table>
+
+  
+</section>
+
+</div>
+
+<footer>
+  ROSMASTER R2 Fork &mdash; HW 배선 문서 &mdash; 2026-07-25
+</footer>
+
+</body>
+</html>

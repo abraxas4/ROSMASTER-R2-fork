@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ROSMASTER R2 — SLAM 아키텍처 및 지도 표시 구조</title>
+  <title>ROSMASTER R2 — SLAM 아키텍처</title>
   <style>
     :root {
       --bg: #f8f9fb;
@@ -123,6 +123,299 @@
       overflow-x: auto;
       white-space: pre;
     }
+    /* Architecture overview (CSS boxes — avoids CJK monospace misalignment) */
+    .arch {
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 0.5rem;
+      padding: 1.25rem 1rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+    .arch-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      justify-content: center;
+      gap: 0.5rem 0.35rem;
+    }
+    .arch-col {
+      display: flex;
+      flex-direction: column;
+      min-width: 10.5rem;
+      max-width: 14rem;
+      flex: 1 1 10.5rem;
+    }
+    .arch-col-label {
+      text-align: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+      margin-bottom: 0.5rem;
+      text-transform: none;
+    }
+    .arch-box {
+      border: 2px solid #94a3b8;
+      border-radius: 0.5rem;
+      background: #fff;
+      padding: 0.65rem 0.75rem;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .arch-box.sensor { border-color: #d97706; background: #fffbeb; }
+    .arch-box.slam   { border-color: #2563eb; background: #eff6ff; }
+    .arch-box.viz    { border-color: #7c3aed; background: #f5f3ff; }
+    .arch-box.nav    { border-color: #059669; background: #ecfdf5; }
+    .arch-box.db {
+      border-color: #64748b;
+      background: #f1f5f9;
+      border-style: dashed;
+      margin-top: 0.65rem;
+      text-align: center;
+      font-size: 0.8rem;
+      flex: 0 0 auto;
+    }
+    .arch-box .title {
+      font-weight: 700;
+      font-size: 0.88rem;
+      margin-bottom: 0.35rem;
+      color: #0f172a;
+    }
+    .arch-box ul {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.8rem;
+      color: #334155;
+    }
+    .arch-box li { margin: 0.15rem 0; }
+    .arch-box .out {
+      margin-top: 0.4rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .arch-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      font-size: 1.35rem;
+      font-weight: 700;
+      flex: 0 0 auto;
+      padding: 0 0.15rem;
+      align-self: center;
+      line-height: 1;
+      user-select: none;
+    }
+    .arch-arrow.down {
+      width: 100%;
+      padding: 0.35rem 0 0;
+      font-size: 1.1rem;
+    }
+    .arch-sinks {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+    }
+    @media (max-width: 720px) {
+      .arch-arrow:not(.down) {
+        width: 100%;
+        transform: rotate(90deg);
+        padding: 0.15rem 0;
+      }
+      .arch-col { max-width: none; }
+    }
+    /* Beginner: ROS2 + byte streams */
+    /* --- Isometric 3D cube tower (SVG) --- */
+    .cube3d-wrap {
+      margin: 1.25rem 0 1.5rem;
+      background: linear-gradient(165deg, #eef2ff 0%, #f8fafc 45%, #ecfdf5 100%);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.15rem 0.75rem 1.25rem;
+      overflow: hidden;
+    }
+    .cube3d-wrap .fig-caption {
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 0.25rem;
+    }
+    .cube3d-wrap .fig-sub {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+    }
+    .iso-svg {
+      display: block;
+      width: 100%;
+      max-width: 640px;
+      height: auto;
+      margin: 0 auto;
+    }
+    .who-svg {
+      display: block;
+      width: 100%;
+      max-width: 720px;
+      height: auto;
+      margin: 0.5rem auto 0;
+    }
+    .who-wrap {
+      margin: 1.25rem 0 1.5rem;
+      background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 50%, #f0fdf4 100%);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.15rem 0.75rem 1.25rem;
+    }
+    .who-wrap .fig-caption {
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 0.25rem;
+    }
+    .who-wrap .fig-sub {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+    }
+    .layer-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      margin: 1rem 0;
+    }
+    .layer {
+      border: 2px solid var(--border);
+      border-radius: 0.6rem;
+      padding: 0.85rem 1rem;
+      background: #fff;
+    }
+    .layer-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.4rem 0.75rem;
+      margin-bottom: 0.4rem;
+    }
+    .layer-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.6rem;
+      height: 1.6rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #fff;
+      background: #64748b;
+    }
+    .layer-title { font-weight: 700; font-size: 0.95rem; color: #0f172a; }
+    .layer-wire {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    }
+    .layer p { margin: 0.25rem 0 0; font-size: 0.88rem; color: #334155; }
+    .layer.L1 { border-color: #d97706; background: #fffbeb; }
+    .layer.L1 .layer-num { background: #d97706; }
+    .layer.L2 { border-color: #2563eb; background: #eff6ff; }
+    .layer.L2 .layer-num { background: #2563eb; }
+    .layer.L3 { border-color: #7c3aed; background: #f5f3ff; }
+    .layer.L3 .layer-num { background: #7c3aed; }
+    .layer.L4 { border-color: #059669; background: #ecfdf5; }
+    .layer.L4 .layer-num { background: #059669; }
+    .ros2-flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      justify-content: center;
+      gap: 0.45rem;
+      margin: 1rem 0;
+    }
+    .ros2-card {
+      border: 2px solid #94a3b8;
+      border-radius: 0.5rem;
+      background: #fff;
+      padding: 0.7rem 0.85rem;
+      min-width: 8.5rem;
+      max-width: 12rem;
+      flex: 1 1 8.5rem;
+      font-size: 0.84rem;
+    }
+    .ros2-card .title { font-weight: 700; margin-bottom: 0.3rem; color: #0f172a; }
+    .ros2-card.pub { border-color: #2563eb; background: #eff6ff; }
+    .ros2-card.bus { border-color: #64748b; background: #f8fafc; border-style: dashed; text-align: center; }
+    .ros2-card.sub { border-color: #059669; background: #ecfdf5; }
+    .byte-frame {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin: 0.75rem 0 0.35rem;
+      align-items: stretch;
+    }
+    .byte-cell {
+      border: 2px solid #94a3b8;
+      border-radius: 0.4rem;
+      padding: 0.45rem 0.5rem;
+      text-align: center;
+      min-width: 4.2rem;
+      flex: 1 1 4.2rem;
+      background: #fff;
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+    .byte-cell .bname {
+      display: block;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #0f172a;
+      margin-bottom: 0.15rem;
+    }
+    .byte-cell .bex {
+      display: block;
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 0.72rem;
+      color: #475569;
+      word-break: break-all;
+    }
+    .byte-cell.sync { border-color: #dc2626; background: #fef2f2; }
+    .byte-cell.len  { border-color: #d97706; background: #fffbeb; }
+    .byte-cell.cmd  { border-color: #2563eb; background: #eff6ff; }
+    .byte-cell.payload { border-color: #7c3aed; background: #f5f3ff; flex: 2 1 7rem; }
+    .byte-cell.chk  { border-color: #059669; background: #ecfdf5; }
+    .note-mini {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin: 0.35rem 0 0.75rem;
+    }
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+    @media (max-width: 640px) {
+      .compare-grid { grid-template-columns: 1fr; }
+    }
+    .compare-card {
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.85rem 1rem;
+      background: #fafbfc;
+      font-size: 0.88rem;
+    }
+    .compare-card h4 { margin: 0 0 0.4rem; font-size: 0.92rem; }
+    .compare-card ul { margin: 0.25rem 0 0; padding-left: 1.15rem; }
+    .compare-card li { margin: 0.2rem 0; }
     .tag {
       display: inline-block;
       font-size: 0.75rem;
@@ -135,6 +428,41 @@
     .tag-nav { background: #d1fae5; color: #065f46; }
     .tag-viz { background: #ede9fe; color: #5b21b6; }
     .tag-sensor { background: #fef3c7; color: #92400e; }
+    .tag-ros { background: #dbeafe; color: #1e40af; }
+    .tag-hw { background: #ffedd5; color: #9a3412; }
+    .kw-table code {
+      user-select: all;
+      cursor: text;
+      white-space: nowrap;
+    }
+    .kw-table td:first-child { width: 28%; font-weight: 600; }
+    .uml-wrap {
+      margin: 1rem 0;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1rem 0.75rem 1.25rem;
+      overflow-x: auto;
+    }
+    .uml-wrap .fig-caption {
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin: 0 0 0.75rem;
+      color: #0f172a;
+    }
+    .uml-svg { display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; }
+    .plantuml-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem 1.15rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      margin: 0.75rem 0;
+    }
+    .plantuml-block code { background: none; color: inherit; padding: 0; font-size: inherit; }
     footer {
       text-align: center;
       color: var(--muted);
@@ -144,37 +472,40 @@
   </style>
 </head>
 <body>
-
 <header>
   <div class="wrap">
-    <h1>ROSMASTER R2 — SLAM 아키텍처 및 지도 표시 구조</h1>
-    <div class="sub">센서 입력부터 지도 생성, RViz 표시, 순찰 활용까지의 전체 데이터 흐름</div>
-    <div class="meta">최종 갱신: 2026-06-29</div>
+    <h1>ROSMASTER R2 — SLAM 아키텍처</h1>
+    <div class="sub">센서 → RTAB-Map → 지도 · RViz · 순찰 (상위 응용)</div>
+    <div class="meta">최종 갱신: 2026-07-25</div>
   </div>
 </header>
-
 <div class="wrap">
 
-<!-- 목차 -->
+<nav class="toc" style="margin-bottom:1rem;">
+  <h2>문서 세트</h2>
+  <ol>
+    <li><a href="R2_SLAM_아키텍처.html">SLAM 아키텍처 (상위 · 응용)</a></li>
+    <li><a href="R2_HW_배선.html">HW 배선 (물리 · 보드)</a></li>
+    <li><a href="R2_ROS2_레이어_low.html">ROS2 하위 레이어 (통신 · 코드)</a></li>
+  </ol>
+</nav>
+
 <nav class="toc">
   <h2>목차</h2>
   <ol>
     <li><a href="#overview">전체 구조 개요</a></li>
-    <li><a href="#sensors">1단계: 센서 입력 (laser_bringup)</a></li>
-    <li><a href="#slam-core">2단계: RTAB-Map SLAM 처리</a></li>
-    <li><a href="#map-display">3단계: 지도 표시 (RViz)</a></li>
-    <li><a href="#tf-tree">TF 트리 — 좌표 변환 체인</a></li>
-    <li><a href="#map-management">지도 관리 체계</a></li>
-    <li><a href="#patrol">순찰 워크플로 (Nav2 연동)</a></li>
-    <li><a href="#nav2-params">Nav2 핵심 파라미터</a></li>
-    <li><a href="#other-slam">기타 SLAM 알고리즘</a></li>
-    <li><a href="#occupancy-grid">부록: OccupancyGrid 셀 값의 의미</a></li>
+    <li><a href="#sensors">1단계: 센서 입력</a></li>
+    <li><a href="#slam-core">2단계: RTAB-Map SLAM</a></li>
+    <li><a href="#map-display">3단계: 지도 표시</a></li>
+    <li><a href="#tf-tree">TF 트리</a></li>
+    <li><a href="#map-management">지도 관리</a></li>
+    <li><a href="#patrol">순찰 워크플로</a></li>
+    <li><a href="#nav2-params">Nav2 파라미터</a></li>
+    <li><a href="#other-slam">기타 SLAM</a></li>
+    <li><a href="#occupancy-grid">OccupancyGrid</a></li>
     <li><a href="#file-index">파일 색인</a></li>
   </ol>
 </nav>
-
-
-<!-- ===== 전체 구조 개요 ===== -->
 <section id="overview">
   <h2>전체 구조 개요</h2>
 
@@ -182,45 +513,104 @@
      로봇이 라이다와 RGB-D 카메라 데이터를 RTAB-Map에 공급하면, RTAB-Map이 스캔 매칭과 루프 클로저를 수행하여
      <code>/map</code> 토픽(2D 점유 격자)을 만들어 RViz에 실시간으로 표시합니다.</p>
 
-  <div class="diagram">센서                    SLAM                     표시/활용
-┌──────────────┐    ┌──────────────────┐    ┌─────────────────────┐
-│ RPLIDAR      │──&gt;│                  │──&gt;│ /map (OccupancyGrid)│──&gt; RViz 2D 지도
-│  /scan       │   │                  │    │ /mapData (3D 클라우드)│──&gt; RViz 포인트클라우드
-├──────────────┤   │   RTAB-Map       │    │ /mapGraph (그래프)   │──&gt; RViz 그래프 오버레이
-│ Orbbec Astra │──&gt;│   rtabmap_slam   │    │ map-&gt;odom TF       │──&gt; 로봇 위치 보정
-│  /camera/*   │   │                  │    └─────────────────────┘
-├──────────────┤   │                  │
-│ 바퀴 엔코더   │──&gt;│                  │    ┌─────────────────────┐
-│  /odom       │   └──────────────────┘    │ Nav2 (순찰 시)       │
-└──────────────┘           │               │  map_server + AMCL   │
-                           │               │  + DWB planner       │
-                    ~/.ros/rtabmap.db       └─────────────────────┘
-                    (SLAM 데이터베이스)</div>
+  <div class="arch" role="img" aria-label="센서 → RTAB-Map → 지도 표시 및 Nav2 데이터 흐름">
+    <div class="arch-row">
+      <div class="arch-col">
+        <div class="arch-col-label">센서</div>
+        <div class="arch-box sensor">
+          <div class="title">입력 센서</div>
+          <ul>
+            <li><strong>RPLIDAR</strong> — <code>/scan</code></li>
+            <li><strong>Orbbec Astra</strong> — <code>/camera/*</code></li>
+            <li><strong>바퀴 엔코더</strong> — <code>/odom</code></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arch-arrow" aria-hidden="true">→</div>
+
+      <div class="arch-col">
+        <div class="arch-col-label">SLAM</div>
+        <div class="arch-box slam">
+          <div class="title">RTAB-Map</div>
+          <ul>
+            <li><code>rtabmap_slam</code></li>
+            <li>스캔 매칭 · 루프 클로저</li>
+          </ul>
+        </div>
+        <div class="arch-arrow down" aria-hidden="true">↓</div>
+        <div class="arch-box db">
+          <code>~/.ros/rtabmap.db</code><br>
+          SLAM 데이터베이스
+        </div>
+      </div>
+
+      <div class="arch-arrow" aria-hidden="true">→</div>
+
+      <div class="arch-col" style="max-width:16rem; flex:1.2 1 12rem;">
+        <div class="arch-col-label">표시 / 활용</div>
+        <div class="arch-sinks">
+          <div class="arch-box viz">
+            <div class="title">RViz · TF</div>
+            <ul>
+              <li><code>/map</code> (OccupancyGrid) → 2D 지도</li>
+              <li><code>/mapData</code> → 포인트클라우드</li>
+              <li><code>/mapGraph</code> → 그래프 오버레이</li>
+              <li><code>map→odom</code> TF → 위치 보정</li>
+            </ul>
+          </div>
+          <div class="arch-box nav">
+            <div class="title">Nav2 (순찰 시)</div>
+            <ul>
+              <li><code>map_server</code> + AMCL</li>
+              <li>DWB planner</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+
+
+  <div class="box box-goal">
+    <strong>관련 문서 (레벨별 분리)</strong>
+    <ul style="margin:0.35rem 0 0; padding-left:1.2rem;">
+      <li><a href="R2_HW_배선.html"><strong>HW 배선</strong></a> — STM32 보드 · USB HUB · Jetson · 2핀(+/-) · USB 시리얼 · 센서</li>
+      <li><a href="R2_ROS2_레이어_low.html"><strong>ROS2 하위 레이어</strong></a> — 계층 ①~④ · 바이트 프레임 · DDS · 코드 UML · 키워드</li>
+    </ul>
+  </div>
+
 </section>
-
-
-<!-- ===== 1단계: 센서 입력 ===== -->
 <section id="sensors">
   <h2>1단계: 센서 입력 (laser_bringup)</h2>
 
-  <p><code>laser_bringup_launch.py</code>가 로봇 하드웨어와 센서를 동시에 가동합니다.</p>
+  <p><code>laser_bringup_launch.py</code>는 <strong>bringup(R2 드라이버 등) + 라이다 + laser TF</strong>를 띄웁니다.
+     카메라는 이 파일에 없고, <code>scripts/start_camera.sh</code> /
+     <code>ros2 launch astra_camera astro_pro_plus.launch.xml</code>로 따로 켭니다.
+     (물리 배선은 <a href="R2_HW_배선.html">R2_HW_배선.html</a> 참고.)</p>
 
   <table>
     <thead>
-      <tr><th>센서</th><th>ROS2 토픽</th><th>역할</th></tr>
+      <tr><th>센서</th><th>ROS2 토픽</th><th>역할 · 코드</th></tr>
     </thead>
     <tbody>
       <tr>
         <td><span class="tag tag-sensor">라이다</span> RPLIDAR (a1/s2/4ROS)</td>
         <td><code>/scan</code></td>
-        <td>360도 2D 레이저 스캔 — 벽과 장애물의 거리 측정</td>
+        <td>360도 2D 스캔.
+            <code>laser_bringup_launch.py</code> →
+            <code>ydlidar_ros2_driver</code> / <code>sllidar_ros2</code></td>
       </tr>
       <tr>
         <td><span class="tag tag-sensor">카메라</span> Orbbec Astra Pro Plus</td>
         <td><code>/camera/color/image_raw</code><br>
             <code>/camera/depth/image_raw</code><br>
             <code>/camera/color/camera_info</code></td>
-        <td>컬러(RGB) 이미지 + 깊이(Depth) 이미지 — 시각적 특징 + 3D 정보</td>
+        <td>RGB + Depth.
+            <strong>laser_bringup에 없음</strong> —
+            <code>astra_camera</code> · <code>astro_pro_plus.launch.xml</code></td>
       </tr>
       <tr>
         <td><span class="tag tag-sensor">엔코더</span> yahboomcar_bringup</td>
@@ -240,9 +630,6 @@
     RTAB-Map은 이 두 가지를 결합하여 라이다만으로는 구분 못하는 비슷한 복도도 구별할 수 있습니다.
   </div>
 </section>
-
-
-<!-- ===== 2단계: RTAB-Map SLAM ===== -->
 <section id="slam-core">
   <h2>2단계: RTAB-Map SLAM 처리</h2>
 
@@ -259,12 +646,50 @@
 
   <h3>b) <code>rtabmap</code> — 실제 SLAM 수행</h3>
 
-  <div class="diagram">입력                        처리                         출력
-/rgbd_image ──┐                                      ┌──&gt; /map (2D 점유 격자)
-              ├──&gt; [스캔 매칭] ──&gt; [그래프 최적화] ──┼──&gt; /mapData (3D 포인트클라우드)
-/scan ────────┤         │                             ├──&gt; /mapGraph (노드/링크)
-              │    [루프 클로저 감지]                   └──&gt; map-&gt;odom TF (위치 보정)
-/odom ────────┘</div>
+  <div class="arch" role="img" aria-label="rtabmap 입력 처리 출력 흐름">
+    <div class="arch-row">
+      <div class="arch-col">
+        <div class="arch-col-label">입력</div>
+        <div class="arch-box sensor">
+          <div class="title">센서 토픽</div>
+          <ul>
+            <li><code>/rgbd_image</code></li>
+            <li><code>/scan</code></li>
+            <li><code>/odom</code></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arch-arrow" aria-hidden="true">→</div>
+
+      <div class="arch-col">
+        <div class="arch-col-label">처리</div>
+        <div class="arch-box slam">
+          <div class="title">rtabmap_slam</div>
+          <ul>
+            <li>스캔 매칭</li>
+            <li>루프 클로저 감지</li>
+            <li>그래프 최적화</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arch-arrow" aria-hidden="true">→</div>
+
+      <div class="arch-col" style="max-width:16rem; flex:1.2 1 12rem;">
+        <div class="arch-col-label">출력</div>
+        <div class="arch-box viz">
+          <div class="title">지도 · TF</div>
+          <ul>
+            <li><code>/map</code> (2D 점유 격자)</li>
+            <li><code>/mapData</code> (3D 클라우드)</li>
+            <li><code>/mapGraph</code> (노드/링크)</li>
+            <li><code>map→odom</code> TF</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <h4>핵심 파라미터</h4>
   <table>
@@ -543,9 +968,6 @@
     그 위에서 로컬라이제이션을 수행할 수 있습니다.
   </div>
 </section>
-
-
-<!-- ===== 3단계: 지도 표시 ===== -->
 <section id="map-display">
   <h2>3단계: 지도 표시 (RViz)</h2>
 
@@ -766,9 +1188,6 @@
     일반 매핑에는 RViz만으로 충분합니다.
   </div>
 </section>
-
-
-<!-- ===== TF 트리 ===== -->
 <section id="tf-tree">
   <h2>TF 트리 — 좌표 변환 체인</h2>
 
@@ -827,9 +1246,6 @@
     이 2단계 구조 덕분에 빠른 엔코더 + 정확한 SLAM을 동시에 활용할 수 있습니다.
   </div>
 </section>
-
-
-<!-- ===== 지도 관리 ===== -->
 <section id="map-management">
   <h2>지도 관리 체계</h2>
 
@@ -878,9 +1294,6 @@ bash rtabmap_mapping_core.sh continue
 python3 map_registry.py rename '집'
 python3 map_registry.py rename '회사'</code></pre>
 </section>
-
-
-<!-- ===== 순찰 워크플로 ===== -->
 <section id="patrol">
   <h2>순찰 워크플로 (Nav2 연동)</h2>
 
@@ -923,9 +1336,6 @@ python3 map_registry.py rename '회사'</code></pre>
     지도 가장자리의 미탐사 영역(회색)이나 벽 근처는 자동으로 제외됩니다.
   </div>
 </section>
-
-
-<!-- ===== Nav2 파라미터 ===== -->
 <section id="nav2-params">
   <h2>Nav2 핵심 파라미터</h2>
 
@@ -971,9 +1381,6 @@ python3 map_registry.py rename '회사'</code></pre>
     </tbody>
   </table>
 </section>
-
-
-<!-- ===== 기타 SLAM ===== -->
 <section id="other-slam">
   <h2>기타 SLAM 알고리즘</h2>
 
@@ -1016,9 +1423,6 @@ python3 map_registry.py rename '회사'</code></pre>
     Gmapping/Cartographer/ORB-SLAM은 실험 또는 비교용으로 남아 있습니다.
   </div>
 </section>
-
-
-<!-- ===== 부록: OccupancyGrid ===== -->
 <section id="occupancy-grid">
   <h2>부록: OccupancyGrid 셀 값의 의미</h2>
 
@@ -1061,9 +1465,6 @@ python3 map_registry.py rename '회사'</code></pre>
   <p>YAML 파일에는 해상도(<code>resolution: 0.05</code>), 원점 좌표(<code>origin</code>),
      점유 판정 임계값(<code>occupied_thresh: 0.65</code>, <code>free_thresh: 0.25</code>)이 기록됩니다.</p>
 </section>
-
-
-<!-- ===== 파일 색인 ===== -->
 <section id="file-index">
   <h2>파일 색인</h2>
 
@@ -1140,12 +1541,9 @@ python3 map_registry.py rename '회사'</code></pre>
     </tbody>
   </table>
 </section>
-
 </div>
-
 <footer>
-  ROSMASTER R2 Fork &mdash; SLAM 아키텍처 문서 &mdash; 2026-06-29
+  ROSMASTER R2 Fork &mdash; SLAM 아키텍처 문서 &mdash; 2026-07-25
 </footer>
-
 </body>
 </html>

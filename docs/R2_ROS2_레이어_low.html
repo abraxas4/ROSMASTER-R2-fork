@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROSMASTER R2 — ROS2 하위 레이어</title>
+  <style>
+    :root {
+      --bg: #f8f9fb;
+      --card: #ffffff;
+      --text: #1a1d26;
+      --muted: #5c6370;
+      --accent: #2563eb;
+      --accent-light: #dbeafe;
+      --ok: #059669;
+      --ok-bg: #d1fae5;
+      --warn: #d97706;
+      --warn-bg: #fef3c7;
+      --err: #dc2626;
+      --err-bg: #fee2e2;
+      --border: #e2e8f0;
+      --code-bg: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.75;
+      color: var(--text);
+      background: var(--bg);
+      margin: 0;
+      padding: 0;
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+    header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: #fff;
+      padding: 2.5rem 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 0 0 1rem 1rem;
+    }
+    header h1 { margin: 0 0 0.5rem; font-size: 1.75rem; font-weight: 700; }
+    header .sub { opacity: 0.9; font-size: 0.95rem; }
+    header .meta { margin-top: 1rem; font-size: 0.85rem; opacity: 0.8; }
+    nav.toc {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+    nav.toc h2 { margin: 0 0 0.75rem; font-size: 1rem; color: var(--muted); }
+    nav.toc ol { margin: 0; padding-left: 1.25rem; }
+    nav.toc a { color: var(--accent); text-decoration: none; }
+    nav.toc a:hover { text-decoration: underline; }
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.5rem;
+    }
+    h2 { font-size: 1.35rem; margin: 0 0 1rem; color: #0f172a; border-bottom: 2px solid var(--accent-light); padding-bottom: 0.4rem; }
+    h3 { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; color: #334155; }
+    h4 { font-size: 1rem; margin: 1rem 0 0.5rem; }
+    p { margin: 0.6rem 0; }
+    ul, ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+    li { margin: 0.35rem 0; }
+    code, pre {
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 0.88em;
+    }
+    code {
+      background: var(--code-bg);
+      padding: 0.15em 0.4em;
+      border-radius: 0.25rem;
+    }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem 1.25rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      margin: 0.75rem 0;
+    }
+    pre code { background: none; padding: 0; color: inherit; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      margin: 1rem 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f1f5f9; font-weight: 600; }
+    tr:nth-child(even) td { background: #fafbfc; }
+    .box {
+      border-radius: 0.5rem;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      border-left: 4px solid;
+    }
+    .box-goal { background: var(--accent-light); border-color: var(--accent); }
+    .box-ok { background: var(--ok-bg); border-color: var(--ok); }
+    .box-warn { background: var(--warn-bg); border-color: var(--warn); }
+    .box-err { background: var(--err-bg); border-color: var(--err); }
+    .box strong { display: block; margin-bottom: 0.35rem; }
+    .diagram {
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    /* Architecture overview (CSS boxes — avoids CJK monospace misalignment) */
+    .arch {
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 0.5rem;
+      padding: 1.25rem 1rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+    .arch-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      justify-content: center;
+      gap: 0.5rem 0.35rem;
+    }
+    .arch-col {
+      display: flex;
+      flex-direction: column;
+      min-width: 10.5rem;
+      max-width: 14rem;
+      flex: 1 1 10.5rem;
+    }
+    .arch-col-label {
+      text-align: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+      margin-bottom: 0.5rem;
+      text-transform: none;
+    }
+    .arch-box {
+      border: 2px solid #94a3b8;
+      border-radius: 0.5rem;
+      background: #fff;
+      padding: 0.65rem 0.75rem;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .arch-box.sensor { border-color: #d97706; background: #fffbeb; }
+    .arch-box.slam   { border-color: #2563eb; background: #eff6ff; }
+    .arch-box.viz    { border-color: #7c3aed; background: #f5f3ff; }
+    .arch-box.nav    { border-color: #059669; background: #ecfdf5; }
+    .arch-box.db {
+      border-color: #64748b;
+      background: #f1f5f9;
+      border-style: dashed;
+      margin-top: 0.65rem;
+      text-align: center;
+      font-size: 0.8rem;
+      flex: 0 0 auto;
+    }
+    .arch-box .title {
+      font-weight: 700;
+      font-size: 0.88rem;
+      margin-bottom: 0.35rem;
+      color: #0f172a;
+    }
+    .arch-box ul {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.8rem;
+      color: #334155;
+    }
+    .arch-box li { margin: 0.15rem 0; }
+    .arch-box .out {
+      margin-top: 0.4rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .arch-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      font-size: 1.35rem;
+      font-weight: 700;
+      flex: 0 0 auto;
+      padding: 0 0.15rem;
+      align-self: center;
+      line-height: 1;
+      user-select: none;
+    }
+    .arch-arrow.down {
+      width: 100%;
+      padding: 0.35rem 0 0;
+      font-size: 1.1rem;
+    }
+    .arch-sinks {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+    }
+    @media (max-width: 720px) {
+      .arch-arrow:not(.down) {
+        width: 100%;
+        transform: rotate(90deg);
+        padding: 0.15rem 0;
+      }
+      .arch-col { max-width: none; }
+    }
+    /* Beginner: ROS2 + byte streams */
+    /* --- Isometric 3D cube tower (SVG) --- */
+    .cube3d-wrap {
+      margin: 1.25rem 0 1.5rem;
+      background: linear-gradient(165deg, #eef2ff 0%, #f8fafc 45%, #ecfdf5 100%);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.15rem 0.75rem 1.25rem;
+      overflow: hidden;
+    }
+    .cube3d-wrap .fig-caption {
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 0.25rem;
+    }
+    .cube3d-wrap .fig-sub {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+    }
+    .iso-svg {
+      display: block;
+      width: 100%;
+      max-width: 640px;
+      height: auto;
+      margin: 0 auto;
+    }
+    .who-svg {
+      display: block;
+      width: 100%;
+      max-width: 720px;
+      height: auto;
+      margin: 0.5rem auto 0;
+    }
+    .who-wrap {
+      margin: 1.25rem 0 1.5rem;
+      background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 50%, #f0fdf4 100%);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.15rem 0.75rem 1.25rem;
+    }
+    .who-wrap .fig-caption {
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 0.25rem;
+    }
+    .who-wrap .fig-sub {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+    }
+    .layer-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      margin: 1rem 0;
+    }
+    .layer {
+      border: 2px solid var(--border);
+      border-radius: 0.6rem;
+      padding: 0.85rem 1rem;
+      background: #fff;
+    }
+    .layer-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.4rem 0.75rem;
+      margin-bottom: 0.4rem;
+    }
+    .layer-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.6rem;
+      height: 1.6rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #fff;
+      background: #64748b;
+    }
+    .layer-title { font-weight: 700; font-size: 0.95rem; color: #0f172a; }
+    .layer-wire {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    }
+    .layer p { margin: 0.25rem 0 0; font-size: 0.88rem; color: #334155; }
+    .layer.L1 { border-color: #d97706; background: #fffbeb; }
+    .layer.L1 .layer-num { background: #d97706; }
+    .layer.L2 { border-color: #2563eb; background: #eff6ff; }
+    .layer.L2 .layer-num { background: #2563eb; }
+    .layer.L3 { border-color: #7c3aed; background: #f5f3ff; }
+    .layer.L3 .layer-num { background: #7c3aed; }
+    .layer.L4 { border-color: #059669; background: #ecfdf5; }
+    .layer.L4 .layer-num { background: #059669; }
+    .ros2-flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      justify-content: center;
+      gap: 0.45rem;
+      margin: 1rem 0;
+    }
+    .ros2-card {
+      border: 2px solid #94a3b8;
+      border-radius: 0.5rem;
+      background: #fff;
+      padding: 0.7rem 0.85rem;
+      min-width: 8.5rem;
+      max-width: 12rem;
+      flex: 1 1 8.5rem;
+      font-size: 0.84rem;
+    }
+    .ros2-card .title { font-weight: 700; margin-bottom: 0.3rem; color: #0f172a; }
+    .ros2-card.pub { border-color: #2563eb; background: #eff6ff; }
+    .ros2-card.bus { border-color: #64748b; background: #f8fafc; border-style: dashed; text-align: center; }
+    .ros2-card.sub { border-color: #059669; background: #ecfdf5; }
+    .byte-frame {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin: 0.75rem 0 0.35rem;
+      align-items: stretch;
+    }
+    .byte-cell {
+      border: 2px solid #94a3b8;
+      border-radius: 0.4rem;
+      padding: 0.45rem 0.5rem;
+      text-align: center;
+      min-width: 4.2rem;
+      flex: 1 1 4.2rem;
+      background: #fff;
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+    .byte-cell .bname {
+      display: block;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #0f172a;
+      margin-bottom: 0.15rem;
+    }
+    .byte-cell .bex {
+      display: block;
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 0.72rem;
+      color: #475569;
+      word-break: break-all;
+    }
+    .byte-cell.sync { border-color: #dc2626; background: #fef2f2; }
+    .byte-cell.len  { border-color: #d97706; background: #fffbeb; }
+    .byte-cell.cmd  { border-color: #2563eb; background: #eff6ff; }
+    .byte-cell.payload { border-color: #7c3aed; background: #f5f3ff; flex: 2 1 7rem; }
+    .byte-cell.chk  { border-color: #059669; background: #ecfdf5; }
+    .note-mini {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin: 0.35rem 0 0.75rem;
+    }
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+    @media (max-width: 640px) {
+      .compare-grid { grid-template-columns: 1fr; }
+    }
+    .compare-card {
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.85rem 1rem;
+      background: #fafbfc;
+      font-size: 0.88rem;
+    }
+    .compare-card h4 { margin: 0 0 0.4rem; font-size: 0.92rem; }
+    .compare-card ul { margin: 0.25rem 0 0; padding-left: 1.15rem; }
+    .compare-card li { margin: 0.2rem 0; }
+    .tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-weight: 600;
+      margin-right: 0.25rem;
+    }
+    .tag-slam { background: #dbeafe; color: #1d4ed8; }
+    .tag-nav { background: #d1fae5; color: #065f46; }
+    .tag-viz { background: #ede9fe; color: #5b21b6; }
+    .tag-sensor { background: #fef3c7; color: #92400e; }
+    .tag-ros { background: #dbeafe; color: #1e40af; }
+    .tag-hw { background: #ffedd5; color: #9a3412; }
+    .kw-table code {
+      user-select: all;
+      cursor: text;
+      white-space: nowrap;
+    }
+    .kw-table td:first-child { width: 28%; font-weight: 600; }
+    .uml-wrap {
+      margin: 1rem 0;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1rem 0.75rem 1.25rem;
+      overflow-x: auto;
+    }
+    .uml-wrap .fig-caption {
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin: 0 0 0.75rem;
+      color: #0f172a;
+    }
+    .uml-svg { display: block; width: 100%; max-width: 760px; height: auto; margin: 0 auto; }
+    .plantuml-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem 1.15rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      margin: 0.75rem 0;
+    }
+    .plantuml-block code { background: none; color: inherit; padding: 0; font-size: inherit; }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.82rem;
+      padding: 2rem 0;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>ROSMASTER R2 — ROS2 하위 레이어</h1>
+    <div class="sub">계층 ①~④ · 바이트 프레임 · DDS · 코드 UML · 키워드 검색</div>
+    <div class="meta">최종 갱신: 2026-07-25</div>
+  </div>
+</header>
+<div class="wrap">
+
+<nav class="toc" style="margin-bottom:1rem;">
+  <h2>문서 세트</h2>
+  <ol>
+    <li><a href="R2_SLAM_아키텍처.html">SLAM 아키텍처 (상위 · 응용)</a></li>
+    <li><a href="R2_HW_배선.html">HW 배선 (물리 · 보드)</a></li>
+    <li><a href="R2_ROS2_레이어_low.html">ROS2 하위 레이어 (통신 · 코드)</a></li>
+  </ol>
+</nav>
+
+
+<nav class="toc">
+  <h2>목차</h2>
+  <ol>
+    <li><a href="#ros2-bytes">ROS2 계층 · 바이트 스트림</a></li>
+    <li><a href="#code-uml">코드 구조 UML · 키워드</a></li>
+  </ol>
+</nav>
+
+
+<p>소프트웨어 <strong>하위 계층</strong> 문서입니다. 물리 보드는
+<a href="R2_HW_배선.html">R2_HW_배선.html</a>, SLAM 응용은
+<a href="R2_SLAM_아키텍처.html">R2_SLAM_아키텍처.html</a>.</p>
+
+<section id="ros2-bytes">
+  <h2>ROS2는 어떻게 동작하나? (초보자 · 바이트 스트림)</h2>
+
+  <p>위 그림의 <code>/scan</code>, <code>/map</code> 같은 이름은 “네트워크에 날아다니는 문자열 명령”이 아닙니다.
+     R2 안에서는 <strong>여러 층의 데이터 길</strong>이 있고, 층마다 실리는 바이트 형식(프로토콜)이 다릅니다.</p>
+
+  <div class="box box-goal">
+    <strong>한 줄 요약</strong>
+    <p style="margin:0;">하드웨어(시리얼/USB)에서는 <em>헤더·길이·명령·데이터·체크섬</em> 같은
+    <strong>바이너리 프레임</strong>을 파싱하고, 그 결과를 ROS2 <strong>메시지 객체</strong>로 바꾼 뒤,
+    노드끼리 통신할 때는 DDS가 그 메시지를 다시 바이트로 직렬화해 보냅니다.
+    ROS2 토픽 이름 자체가 “예약어 키워드 프로토콜”은 아닙니다.</p>
+  </div>
+
+  <h3>1) 층으로 보기 — 어디서 바이트가 흐르나</h3>
+
+  <p>아래는 같은 네 층을 <strong>등각(isometric) 3D 육면체 탑</strong>으로 그린 것입니다.
+     <strong>맨 아래(노랑)</strong>가 전선 위의 날바이트, <strong>맨 위(초록)</strong>가 노드끼리 다시 네트워크로 보내는 층입니다.
+     데이터가 위로 갈수록 “의미 있는 메시지”가 되고, 꼭대기에서 다시 바이트로 포장됩니다.</p>
+
+  <div class="cube3d-wrap">
+    <p class="fig-caption">그림 · R2 데이터 계층 (3D 육면체 스택)</p>
+    <p class="fig-sub">바닥 = 하드웨어 전선 &nbsp;·&nbsp; 꼭대기 = ROS2 노드 간 전송 (DDS)</p>
+
+    <!-- Isometric cubes: each box = top + left + right faces
+         Layer anchors (top-center Y): L4=78, L3=208, L2=338, L1=468  (step 130)
+         Slab extent ~ -42..+78 → 다음 층 글자가 가려지지 않도록 간격 확보 -->
+    <svg class="iso-svg" viewBox="0 0 640 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="4층 3D 육면체 스택: 1 하드웨어, 2 드라이버, 3 ROS2 메시지, 4 DDS">
+      <defs>
+        <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.16"/>
+        </filter>
+        <linearGradient id="gFloor" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#cbd5e1" stop-opacity="0.4"/>
+          <stop offset="100%" stop-color="#cbd5e1" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+
+      <!-- floor ellipse -->
+      <ellipse cx="300" cy="560" rx="175" ry="28" fill="url(#gFloor)"/>
+
+      <!--
+        Side guide rails (dotted): mark that these are stacked layers.
+        Left x=178, right x=422 — just outside the diamond (±104 at cx=300)
+        Layer mid Y = anchors 78, 208, 338, 468
+      -->
+      <g stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" fill="none" opacity="0.85">
+        <!-- left vertical rail -->
+        <line x1="178" y1="36" x2="178" y2="546"/>
+        <!-- right vertical rail -->
+        <line x1="422" y1="36" x2="422" y2="546"/>
+        <!-- horizontal floor lines at each layer (connect rails → “층”) -->
+        <line x1="178" y1="78" x2="422" y2="78"/>
+        <line x1="178" y1="208" x2="422" y2="208"/>
+        <line x1="178" y1="338" x2="422" y2="338"/>
+        <line x1="178" y1="468" x2="422" y2="468"/>
+        <line x1="178" y1="546" x2="422" y2="546"/>
+      </g>
+      <!-- rail end caps -->
+      <g fill="#64748b" opacity="0.9">
+        <circle cx="178" cy="36" r="3.2"/>
+        <circle cx="422" cy="36" r="3.2"/>
+        <circle cx="178" cy="546" r="3.2"/>
+        <circle cx="422" cy="546" r="3.2"/>
+      </g>
+      <text x="300" y="28" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">층 (layer) 가이드</text>
+
+      <!-- L1 hardware (bottom) y=468 -->
+      <g filter="url(#softShadow)" transform="translate(300 468)">
+        <polygon points="0,-42 104,0 0,42 -104,0" fill="#fde68a" stroke="#92400e" stroke-width="1.5"/>
+        <polygon points="-104,0 0,42 0,78 -104,36" fill="#f59e0b" stroke="#92400e" stroke-width="1.5"/>
+        <polygon points="104,0 0,42 0,78 104,36" fill="#d97706" stroke="#92400e" stroke-width="1.5"/>
+        <text x="0" y="-4" text-anchor="middle" font-size="14" font-weight="800" fill="#78350f"
+              font-family="Pretendard, Noto Sans KR, sans-serif">① 하드웨어 전선</text>
+        <text x="0" y="14" text-anchor="middle" font-size="10.5" font-weight="600" fill="#92400e"
+              font-family="Pretendard, Noto Sans KR, sans-serif">UART · USB · 바이트</text>
+      </g>
+
+      <!-- L2 drivers y=338 -->
+      <g filter="url(#softShadow)" transform="translate(300 338)">
+        <polygon points="0,-42 104,0 0,42 -104,0" fill="#bfdbfe" stroke="#1e40af" stroke-width="1.5"/>
+        <polygon points="-104,0 0,42 0,78 -104,36" fill="#3b82f6" stroke="#1e40af" stroke-width="1.5"/>
+        <polygon points="104,0 0,42 0,78 104,36" fill="#2563eb" stroke="#1e40af" stroke-width="1.5"/>
+        <text x="0" y="-4" text-anchor="middle" font-size="14" font-weight="800" fill="#1e3a8a"
+              font-family="Pretendard, Noto Sans KR, sans-serif">② 드라이버 파싱</text>
+        <text x="0" y="14" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1e40af"
+              font-family="Pretendard, Noto Sans KR, sans-serif">헤더 · 길이 · CMD · 체크</text>
+      </g>
+
+      <!-- L3 ROS2 messages y=208 -->
+      <g filter="url(#softShadow)" transform="translate(300 208)">
+        <polygon points="0,-42 104,0 0,42 -104,0" fill="#ddd6fe" stroke="#5b21b6" stroke-width="1.5"/>
+        <polygon points="-104,0 0,42 0,78 -104,36" fill="#8b5cf6" stroke="#5b21b6" stroke-width="1.5"/>
+        <polygon points="104,0 0,42 0,78 104,36" fill="#7c3aed" stroke="#5b21b6" stroke-width="1.5"/>
+        <text x="0" y="-4" text-anchor="middle" font-size="14" font-weight="800" fill="#4c1d95"
+              font-family="Pretendard, Noto Sans KR, sans-serif">③ ROS2 메시지</text>
+        <text x="0" y="14" text-anchor="middle" font-size="10.5" font-weight="600" fill="#5b21b6"
+              font-family="Pretendard, Noto Sans KR, sans-serif">/scan · /map · Twist</text>
+      </g>
+
+      <!-- L4 DDS (top) y=78 -->
+      <g filter="url(#softShadow)" transform="translate(300 78)">
+        <polygon points="0,-42 104,0 0,42 -104,0" fill="#a7f3d0" stroke="#065f46" stroke-width="1.5"/>
+        <polygon points="-104,0 0,42 0,78 -104,36" fill="#10b981" stroke="#065f46" stroke-width="1.5"/>
+        <polygon points="104,0 0,42 0,78 104,36" fill="#059669" stroke="#065f46" stroke-width="1.5"/>
+        <text x="0" y="-4" text-anchor="middle" font-size="14" font-weight="800" fill="#064e3b"
+              font-family="Pretendard, Noto Sans KR, sans-serif">④ DDS / RTPS</text>
+        <text x="0" y="14" text-anchor="middle" font-size="10.5" font-weight="600" fill="#065f46"
+              font-family="Pretendard, Noto Sans KR, sans-serif">노드↔노드 · CDR · UDP</text>
+      </g>
+
+      <!-- left: vertical meaning arrow -->
+      <g font-family="Pretendard, Noto Sans KR, sans-serif">
+        <text x="48" y="54" font-size="12" font-weight="700" fill="#059669">앱 · 지도</text>
+        <path d="M58 70 L58 500" stroke="#2563eb" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        <polygon points="58,64 51,78 65,78" fill="#2563eb"/>
+        <text x="18" y="290" font-size="11" font-weight="700" fill="#2563eb"
+              transform="rotate(-90 18 290)">의미 · 추상화 ↑</text>
+        <text x="36" y="520" font-size="12" font-weight="700" fill="#d97706">전선 · MCU</text>
+        <text x="32" y="536" font-size="10" fill="#64748b">0x… 날바이트</text>
+      </g>
+
+      <!-- right: layer callouts (aligned to new Y) -->
+      <g font-family="Pretendard, Noto Sans KR, sans-serif" font-size="11" fill="#475569">
+        <line x1="430" y1="78" x2="468" y2="64" stroke="#94a3b8" stroke-width="1.3"/>
+        <text x="472" y="62" font-weight="700" fill="#059669">다시 바이트로 포장</text>
+        <text x="472" y="78" fill="#64748b">다른 노드가 수신</text>
+
+        <line x1="430" y1="208" x2="468" y2="208" stroke="#94a3b8" stroke-width="1.3"/>
+        <text x="472" y="204" font-weight="700" fill="#7c3aed">사람이 읽는 이름</text>
+        <text x="472" y="220" fill="#64748b">토픽 · .msg 필드</text>
+
+        <line x1="430" y1="338" x2="468" y2="338" stroke="#94a3b8" stroke-width="1.3"/>
+        <text x="472" y="334" font-weight="700" fill="#2563eb">프로토콜 파싱</text>
+        <text x="472" y="350" fill="#64748b">SYNC · LEN · CMD …</text>
+
+        <line x1="430" y1="468" x2="468" y2="490" stroke="#94a3b8" stroke-width="1.3"/>
+        <text x="472" y="488" font-weight="700" fill="#d97706">물리 바이트 스트림</text>
+        <text x="472" y="504" fill="#64748b">/dev/myserial 등</text>
+      </g>
+
+      <text x="300" y="600" text-anchor="middle" font-size="12" font-weight="600" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">
+        Jetson ↔ STM32 확장보드 · 라이다 · 깊이 카메라
+      </text>
+    </svg>
+  </div>
+
+  
+  <!-- HW 배선은 R2_HW_배선.html 참고 -->
+  <p class="note-mini">물리 배선(STM32·USB HUB·Jetson)은 <a href="R2_HW_배선.html">R2_HW_배선.html</a> 문서에 정리되어 있습니다.</p>
+<!-- 누가 → 누구에게 (소프트웨어) -->
+  <div class="who-wrap">
+    <p class="fig-caption">그림 · 누가 누구에게 보내나 (소프트웨어 · ①~④)</p>
+    <p class="fig-sub">왼쪽 하드웨어 입력은 경로가 갈라진 뒤 · 큰 박스 안 = Jetson 프로세스</p>
+
+    <svg class="who-svg" viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg" role="img"
+         aria-label="시리얼과 USB가 Jetson으로 들어간 뒤 프로세스끼리 DDS">
+      <defs>
+        <marker id="arrOrange" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#d97706"/>
+        </marker>
+        <marker id="arrBlue" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#2563eb"/>
+        </marker>
+        <marker id="arrPurple" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#7c3aed"/>
+        </marker>
+        <marker id="arrGreen" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#059669"/>
+        </marker>
+      </defs>
+
+      <text x="100" y="24" text-anchor="middle" font-size="11" font-weight="800" fill="#92400e"
+            font-family="Pretendard, Noto Sans KR, sans-serif">하드웨어 입력 (경로 2갈래)</text>
+
+      <!-- Path A STM32 -->
+      <g transform="translate(24 40)">
+        <rect width="130" height="44" rx="8" fill="#ffedd5" stroke="#d97706" stroke-width="2"/>
+        <text x="65" y="18" text-anchor="middle" font-size="11" font-weight="800" fill="#92400e"
+              font-family="Pretendard, Noto Sans KR, sans-serif">ROS 확장판</text>
+        <text x="65" y="34" text-anchor="middle" font-size="9" fill="#b45309"
+              font-family="Pretendard, Noto Sans KR, sans-serif">STM32·모터·IMU</text>
+      </g>
+      <path d="M154 62 L210 62" stroke="#d97706" stroke-width="2.2" fill="none" marker-end="url(#arrOrange)"/>
+      <text x="182" y="54" text-anchor="middle" font-size="9" font-weight="700" fill="#d97706"
+            font-family="Pretendard, Noto Sans KR, sans-serif">시리얼</text>
+
+      <!-- Path B sensors via USB HUB -->
+      <g transform="translate(24 100)">
+        <rect width="130" height="44" rx="8" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+        <text x="65" y="18" text-anchor="middle" font-size="11" font-weight="800" fill="#075985"
+              font-family="Pretendard, Noto Sans KR, sans-serif">라이다·카메라</text>
+        <text x="65" y="34" text-anchor="middle" font-size="9" fill="#0369a1"
+              font-family="Pretendard, Noto Sans KR, sans-serif">→ USB HUB 확장판</text>
+      </g>
+      <path d="M154 122 L210 122" stroke="#0284c7" stroke-width="2.2" fill="none" marker-end="url(#arrBlue)"/>
+      <text x="182" y="114" text-anchor="middle" font-size="9" font-weight="700" fill="#0284c7"
+            font-family="Pretendard, Noto Sans KR, sans-serif">HUB→USB</text>
+
+      <!-- HDMI out note -->
+      <g transform="translate(24 168)">
+        <rect width="130" height="36" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1.8"/>
+        <text x="65" y="22" text-anchor="middle" font-size="10" font-weight="700" fill="#065f46"
+              font-family="Pretendard, Noto Sans KR, sans-serif">HDMI ← Jetson 출력</text>
+      </g>
+
+      <!-- Jetson box -->
+      <rect x="210" y="36" width="360" height="280" rx="14" fill="#ffffff" stroke="#1e40af" stroke-width="2.5"/>
+      <rect x="212" y="38" width="356" height="28" rx="12" fill="#dbeafe"/>
+      <text x="390" y="57" text-anchor="middle" font-size="12" font-weight="800" fill="#1e3a8a"
+            font-family="Pretendard, Noto Sans KR, sans-serif">Jetson 안 (CPU · 여러 프로세스)</text>
+
+      <text x="228" y="88" font-size="10" font-weight="800" fill="#1d4ed8"
+            font-family="Pretendard, Noto Sans KR, sans-serif">② 드라이버</text>
+      <g font-family="Pretendard, Noto Sans KR, sans-serif">
+        <rect x="228" y="96" width="100" height="36" rx="6" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+        <text x="278" y="118" text-anchor="middle" font-size="10" font-weight="700" fill="#1e40af">라이다 drv</text>
+        <rect x="340" y="96" width="100" height="36" rx="6" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+        <text x="390" y="118" text-anchor="middle" font-size="10" font-weight="700" fill="#1e40af">카메라 drv</text>
+        <rect x="452" y="96" width="100" height="36" rx="6" fill="#fff7ed" stroke="#d97706" stroke-width="1.5"/>
+        <text x="502" y="118" text-anchor="middle" font-size="10" font-weight="700" fill="#c2410c">Rosmaster_Lib</text>
+      </g>
+
+      <path d="M278 132 L278 160" stroke="#7c3aed" stroke-width="1.6" fill="none" marker-end="url(#arrPurple)"/>
+      <path d="M390 132 L390 160" stroke="#7c3aed" stroke-width="1.6" fill="none" marker-end="url(#arrPurple)"/>
+      <path d="M502 132 L502 160" stroke="#7c3aed" stroke-width="1.6" fill="none" marker-end="url(#arrPurple)"/>
+
+      <text x="228" y="156" font-size="10" font-weight="800" fill="#5b21b6"
+            font-family="Pretendard, Noto Sans KR, sans-serif">③ ROS2 노드 (프로세스)</text>
+      <g font-family="Pretendard, Noto Sans KR, sans-serif">
+        <rect x="228" y="164" width="100" height="40" rx="6" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.6"/>
+        <text x="278" y="182" text-anchor="middle" font-size="10" font-weight="800" fill="#5b21b6">driver_node</text>
+        <text x="278" y="196" text-anchor="middle" font-size="8" fill="#7c3aed">시리얼↔/cmd_vel</text>
+        <rect x="340" y="164" width="100" height="40" rx="6" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.6"/>
+        <text x="390" y="182" text-anchor="middle" font-size="10" font-weight="800" fill="#5b21b6">rtabmap</text>
+        <text x="390" y="196" text-anchor="middle" font-size="8" fill="#7c3aed">/scan·카메라</text>
+        <rect x="452" y="164" width="100" height="40" rx="6" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.6"/>
+        <text x="502" y="182" text-anchor="middle" font-size="10" font-weight="800" fill="#5b21b6">RViz</text>
+        <text x="502" y="196" text-anchor="middle" font-size="8" fill="#7c3aed">화면 표시</text>
+      </g>
+
+      <rect x="228" y="222" width="324" height="44" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="2"
+            stroke-dasharray="5 3"/>
+      <text x="390" y="240" text-anchor="middle" font-size="11" font-weight="800" fill="#065f46"
+            font-family="Pretendard, Noto Sans KR, sans-serif">④ DDS · 같은 Jetson 안 프로세스 ↔ 프로세스</text>
+      <text x="390" y="256" text-anchor="middle" font-size="9" fill="#047857"
+            font-family="Pretendard, Noto Sans KR, sans-serif">localhost 등 · (선택) Wi‑Fi로 노트북</text>
+
+      <path d="M278 204 L278 222" stroke="#059669" stroke-width="1.5" fill="none" marker-end="url(#arrGreen)"/>
+      <path d="M390 204 L390 222" stroke="#059669" stroke-width="1.5" fill="none" marker-end="url(#arrGreen)"/>
+      <path d="M502 204 L502 222" stroke="#059669" stroke-width="1.5" fill="none" marker-end="url(#arrGreen)"/>
+
+      <rect x="590" y="164" width="110" height="56" rx="8" fill="#f0fdf4" stroke="#059669" stroke-width="1.8"/>
+      <text x="645" y="188" text-anchor="middle" font-size="11" font-weight="800" fill="#065f46"
+            font-family="Pretendard, Noto Sans KR, sans-serif">노트북</text>
+      <text x="645" y="206" text-anchor="middle" font-size="9" fill="#64748b"
+            font-family="Pretendard, Noto Sans KR, sans-serif">④ 선택</text>
+      <path d="M552 244 L590 200" stroke="#059669" stroke-width="1.8" fill="none" stroke-dasharray="4 3"
+            marker-end="url(#arrGreen)"/>
+
+      <g font-family="Pretendard, Noto Sans KR, sans-serif" font-size="10">
+        <rect x="24" y="330" width="672" height="54" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+        <text x="40" y="350" font-weight="800" fill="#0f172a">한 줄</text>
+        <text x="40" y="368" fill="#334155">
+          cam/lidar → USB HUB 확장판 → Jetson · STM32 확장판은 차체 제어 · HDMI·ROS2는 Jetson
+        </text>
+      </g>
+    </svg>
+  </div>
+
+  <p class="note-mini">같은 내용을 글 카드로 풀어 쓴 것이 바로 아래 1→4 목록입니다. 그림의 색깔·번호와 맞춰 읽으면 됩니다.</p>
+
+  <div class="layer-stack" role="img" aria-label="하드웨어부터 ROS2 응용까지 4층 데이터 경로">
+    <div class="layer L1">
+      <div class="layer-head">
+        <span class="layer-num">1</span>
+        <span class="layer-title">하드웨어 선 (물리 바이트 스트림)</span>
+        <span class="layer-wire">UART · USB · /dev/myserial · /dev/ydlidar …</span>
+      </div>
+      <p>
+        ROS 확장판(STM32) · USB HUB 확장판 · Jetson. 라이다/카메라는 매뉴얼상 USB HUB를 거쳐 Jetson으로.
+        전선 위에는 <strong>0과 1(바이트 나열)</strong>만 있습니다.
+        R2 본체 제어는 보통 <code>Rosmaster_Lib</code>가 시리얼을 읽고 씁니다
+        (<code>Ackman_driver_R2.py</code> → <code>set_car_motion</code> / <code>get_motion_data</code>).
+      </p>
+    </div>
+    <div class="layer L2">
+      <div class="layer-head">
+        <span class="layer-num">2</span>
+        <span class="layer-title">장치 드라이버 / SDK (프레임 파싱)</span>
+        <span class="layer-wire">Rosmaster_Lib · 라이다 드라이버 · Orbbec/Astra 드라이버</span>
+      </div>
+      <p>
+        “이 바이트 줄이 한 프레임의 시작인가?”를 보고
+        <strong>동기 헤더 → 길이 → 기능코드/명령 → 페이로드 → 체크섬</strong>을 잘라 숫자·구조체로 만듭니다.
+        여기까지는 아직 ROS2가 아닙니다.
+      </p>
+    </div>
+    <div class="layer L3">
+      <div class="layer-head">
+        <span class="layer-num">3</span>
+        <span class="layer-title">ROS2 노드 · 토픽 · 메시지 (의미 있는 데이터)</span>
+        <span class="layer-wire">publisher / subscriber · .msg 타입</span>
+      </div>
+      <p>
+        파싱된 값을 <code>sensor_msgs/LaserScan</code>, <code>nav_msgs/Odometry</code>,
+        <code>geometry_msgs/Twist</code> 같은 <strong>정해진 필드 구조</strong>에 넣어
+        토픽 이름(예: <code>/scan</code>, <code>/cmd_vel</code>)으로 주고받습니다.
+        토픽 이름은 주소 라벨에 가깝고, HTTP의 <code>GET</code> 같은 예약 키워드 체계가 아닙니다.
+      </p>
+    </div>
+    <div class="layer L4">
+      <div class="layer-head">
+        <span class="layer-num">4</span>
+        <span class="layer-title">노드 간 전송 (다시 바이트로)</span>
+        <span class="layer-wire">DDS / RTPS · CDR 직렬화 · UDP 등</span>
+      </div>
+      <p>
+        같은 컴퓨터(또는 같은 <code>ROS_DOMAIN_ID</code> 네트워크)의 다른 노드가 받으려면,
+        ROS2가 메시지를 <strong>CDR</strong>로 바이트 배열로 만들고 <strong>DDS(RTPS)</strong> 프로토콜로 실어 보냅니다.
+        사용자는 보통 이 층을 직접 파싱하지 않습니다 — <code>create_subscription</code> 콜백에
+        이미 복원된 메시지 객체가 들어옵니다.
+      </p>
+    </div>
+  </div>
+
+  <h3>2) ROS2 “작용” 그림 — 발행 / 구독</h3>
+
+  <p>초보자가 코드에서 보는 ROS2의 핵심은 이 패턴입니다.</p>
+
+  <div class="ros2-flow" role="img" aria-label="Publisher 토픽 Subscriber 흐름">
+    <div class="ros2-card pub">
+      <div class="title"><span class="tag tag-ros">발행</span> Publisher</div>
+      <ul>
+        <li>예: 드라이버 노드</li>
+        <li>타입: <code>LaserScan</code></li>
+        <li>토픽: <code>/scan</code></li>
+      </ul>
+    </div>
+    <div class="arch-arrow" aria-hidden="true">→</div>
+    <div class="ros2-card bus">
+      <div class="title">토픽 버스</div>
+      <p style="margin:0;font-size:0.8rem;color:#475569;">
+        이름: <code>/scan</code><br>
+        같은 타입끼리만 연결<br>
+        (내부: DDS 매칭)
+      </p>
+    </div>
+    <div class="arch-arrow" aria-hidden="true">→</div>
+    <div class="ros2-card sub">
+      <div class="title"><span class="tag tag-ros">구독</span> Subscriber</div>
+      <ul>
+        <li>예: RTAB-Map 노드</li>
+        <li>콜백에서 스캔 처리</li>
+        <li>결과로 <code>/map</code> 발행</li>
+      </ul>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>개념</th><th>초보자용 의미</th><th>R2 예시</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>노드 (Node)</strong></td>
+        <td>하나의 프로그램 단위. 발행·구독을 가짐</td>
+        <td><code>driver_node</code>, <code>rtabmap</code>, RViz</td>
+      </tr>
+      <tr>
+        <td><strong>토픽 (Topic)</strong></td>
+        <td>데이터가 흐르는 “채널 이름”</td>
+        <td><code>/scan</code>, <code>/cmd_vel</code>, <code>/map</code>, <code>/odom</code></td>
+      </tr>
+      <tr>
+        <td><strong>메시지 타입 (.msg)</strong></td>
+        <td>필드 목록이 고정된 데이터 양식 (스키마)</td>
+        <td><code>sensor_msgs/LaserScan</code>, <code>geometry_msgs/Twist</code></td>
+      </tr>
+      <tr>
+        <td><strong>Header (많은 메시지 공통)</strong></td>
+        <td>시간 스탬프 + 좌표 프레임 이름 — “예약 키워드”가 아니라 <em>필드</em></td>
+        <td><code>header.stamp</code>, <code>header.frame_id = "laser"</code></td>
+      </tr>
+      <tr>
+        <td><strong>서비스 / 액션</strong></td>
+        <td>요청-응답, 긴 작업(목표 지점 이동 등)</td>
+        <td>Nav2 목표 전송, 맵 저장 서비스 등</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="box box-ok">
+    <strong>R2 드라이버가 하는 일 (한 바퀴)</strong>
+    <p style="margin:0;">
+      <code>Ackman_driver_R2.py</code>는 <code>/cmd_vel</code>(Twist)을 구독 →
+      <code>Rosmaster_Lib.set_car_motion(vx, vy, angular)</code>로 <strong>시리얼 바이트</strong> 전송 →
+      타이머로 보드에서 IMU·전압·속도 등을 읽어
+      <code>/imu/data_raw</code>, <code>/vel_raw</code> 등으로 <strong>다시 ROS2 메시지 발행</strong>합니다.
+      즉 “하드웨어 프로토콜 ↔ ROS2 메시지” 번역기입니다.
+    </p>
+  </div>
+
+  <h3>3) 하드웨어 쪽 바이트 프레임 — protocol 이 있나?</h3>
+
+  <p><strong>있습니다.</strong> 다만 ROS2 표준 문서에 있는 형식이 아니라,
+     보드·센서 제조사(Yahboom 확장보드, 라이다 벤더 등)가 정한
+     <span class="tag tag-hw">장치 전용 바이너리 프로토콜</span>입니다.
+     공통 패턴은 아래와 같습니다 (임베디드 시리얼에서 매우 흔함).</p>
+
+  <div class="byte-frame" role="img" aria-label="시리얼 프레임 필드: 동기, 길이, 명령, 데이터, 체크섬">
+    <div class="byte-cell sync">
+      <span class="bname">① SYNC / 헤더</span>
+      <span class="bex">고정 바이트<br>예: 0xFF 0xFC …</span>
+    </div>
+    <div class="byte-cell len">
+      <span class="bname">② LENGTH</span>
+      <span class="bex">이 뒤 페이로드<br>몇 바이트인지</span>
+    </div>
+    <div class="byte-cell cmd">
+      <span class="bname">③ CMD / FUNC</span>
+      <span class="bex">무슨 명령?<br>속도·IMU·부저…</span>
+    </div>
+    <div class="byte-cell payload">
+      <span class="bname">④ PAYLOAD (데이터)</span>
+      <span class="bex">실제 값들 (속도 float, 가속도, 전압…)<br>타입·순서는 제조사 표에 정의</span>
+    </div>
+    <div class="byte-cell chk">
+      <span class="bname">⑤ CHECK</span>
+      <span class="bex">checksum<br>깨진 프레임 버림</span>
+    </div>
+  </div>
+  <p class="note-mini">
+    ※ 위 숫자(0xFF 등)는 <strong>전형적인 형태 예시</strong>입니다.
+    R2에서 쓰는 정확한 매직 넘버·체크섬 식은 출하 이미지의 <code>Rosmaster_Lib</code>(또는 하드웨어 매뉴얼)에 있습니다.
+    사용자 코드는 보통 그 라이브러리 API만 호출합니다.
+  </p>
+
+  <p><strong>수신 쪽 파싱 순서 (초보자용 의사코드)</strong></p>
+  <pre><code># 시리얼에서 바이트가 끊임없이 들어올 때
+while True:
+    b = read_one_byte()
+    if not in_frame:
+        if matches_sync_header(b):   # ① 예약된 시작 바이트(들) 찾기
+            in_frame = True
+            buf = [b]
+        continue
+    buf.append(b)
+    if len(buf) >= HEADER_SIZE:
+        length = parse_length(buf)   # ② 길이 필드로 "이 프레임 끝" 계산
+    if frame_complete(buf, length):
+        if checksum_ok(buf):         # ⑤
+            cmd = parse_cmd(buf)     # ③
+            data = parse_payload(buf)# ④
+            # → ROS2 메시지로 채워서 publish
+        else:
+            discard()                # 깨진 패킷
+        reset_frame()</code></pre>
+
+  <div class="compare-grid">
+    <div class="compare-card">
+      <h4>하드웨어 프로토콜에 “있는” 것</h4>
+      <ul>
+        <li>프레임 시작을 알리는 <strong>고정 헤더(SYNC)</strong></li>
+        <li><strong>길이(length)</strong> — 가변 길이 프레임일 때</li>
+        <li><strong>명령/기능 코드</strong> — 어떤 종류의 데이터인지</li>
+        <li>페이로드 + <strong>체크섬/CRC</strong></li>
+        <li>보드·센서마다 표가 다름 (문서/라이브러리 필수)</li>
+      </ul>
+    </div>
+    <div class="compare-card">
+      <h4>ROS2 메시지 층에 “없는/다른” 것</h4>
+      <ul>
+        <li>토픽 문자열을 바이트로 파싱하는 “키워드 프로토콜” 아님</li>
+        <li>대신 <strong>.msg 스키마</strong>로 필드 이름·타입이 컴파일 타임에 정해짐</li>
+        <li>와이어 포맷은 보통 <strong>CDR</strong> (필드 순서 고정 바이너리)</li>
+        <li>전송 제어는 <strong>DDS/RTPS</strong> (GUID, 시퀀스 번호, QoS…)</li>
+        <li>앱 개발자는 메시지 객체만 다룸</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>4) ROS2가 네트워크에 실을 때 (DDS 쪽, 개념만)</h3>
+
+  <p>노드 A가 <code>LaserScan</code>을 publish 하면, 미들웨어가 대략 이렇게 바꿉니다.</p>
+
+  <div class="byte-frame" role="img" aria-label="ROS2 DDS 전송 개념 계층">
+    <div class="byte-cell sync">
+      <span class="bname">RTPS 헤더</span>
+      <span class="bex">프로토콜 ID<br>버전 · GUID 등</span>
+    </div>
+    <div class="byte-cell cmd">
+      <span class="bname">서브메시지</span>
+      <span class="bex">DATA / HEARTBEAT<br>시퀀스 번호</span>
+    </div>
+    <div class="byte-cell payload">
+      <span class="bname">CDR 직렬화 페이로드</span>
+      <span class="bex">LaserScan 필드 순서대로<br>header, angle_min, ranges[] …</span>
+    </div>
+    <div class="byte-cell chk">
+      <span class="bname">전송 계층</span>
+      <span class="bex">주로 UDP<br>도메인 ID로 분리</span>
+    </div>
+  </div>
+  <p class="note-mini">
+    이 프로젝트 스크립트는 <code>ROS_DOMAIN_ID</code>(예: 28)로 “같은 로봇 무리”만 서로 말 걸게 합니다.
+    도메인이 다르면 토픽 이름이 같아도 안 보입니다.
+  </p>
+
+  <h3>5) R2에서 자주 보는 길 — 한눈에</h3>
+
+  <table>
+    <thead>
+      <tr><th>경로</th><th>물리/버스</th><th>프로토콜 성격</th><th>ROS2로 나오면</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>모터·IMU·배터리 (확장보드)</td>
+        <td>UART 시리얼 (<code>/dev/myserial</code> 등)</td>
+        <td>Yahboom <strong>바이너리 프레임</strong> (<code>Rosmaster_Lib</code>가 파싱)</td>
+        <td><code>/cmd_vel</code>↓ · <code>/vel_raw</code> · <code>/imu/data_raw</code> · <code>/voltage</code>…</td>
+      </tr>
+      <tr>
+        <td>라이다</td>
+        <td>USB HUB 확장판 → Jetson (<code>/dev/ydlidar</code> 등)</td>
+        <td>제조사 스캔 패킷 · <code>ydlidar_ros2_driver</code> / <code>sllidar_ros2</code></td>
+        <td><code>/scan</code> (<code>sensor_msgs/LaserScan</code>)</td>
+      </tr>
+      <tr>
+        <td>깊이 카메라</td>
+        <td>USB HUB 확장판 → Jetson (<code>/dev/AstraPlus</code> 등)</td>
+        <td><code>astra_camera</code> · Orbbec/Astra 스트림</td>
+        <td><code>/camera/color/*</code>, <code>/camera/depth/*</code></td>
+      </tr>
+      <tr>
+        <td>노드 ↔ 노드 (SLAM, RViz, Nav2)</td>
+        <td>localhost / LAN</td>
+        <td><strong>DDS/RTPS + CDR</strong> (ROS2 표준 스택)</td>
+        <td>같은 토픽·타입으로 pub/sub</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="note-mini">
+    관련 코드: <code>code/yahboomcar_ros2_ws/src/yahboomcar_bringup/yahboomcar_bringup/Ackman_driver_R2.py</code>
+    · 환경: <code>scripts/native_ros_setup.bash</code> (<code>ROS_DOMAIN_ID</code>)
+  </p>
+</section>
+<section id="code-uml">
+  <h2>코드 구조 UML · 키워드 검색표</h2>
+
+  <p>fork 소스·스크립트 기준입니다. 표의 <code>키워드</code>로 IDE/터미널 검색하면 해당 위치로 갈 수 있습니다.</p>
+
+  <div class="box box-ok">
+    <strong>구성 요약</strong>
+    <ul style="margin:0.35rem 0 0; padding-left:1.2rem;">
+      <li>물리: <strong>STM32 보드</strong>와 <strong>USB HUB 보드</strong>는 별도 PCB.
+          둘 사이 — 2핀 <code>+</code>/<code>-</code> 전원, USB(MCU 시리얼).
+          카메라·라이다 → HUB → Jetson. 소프트웨어 장치:
+          <code>/dev/ydlidar</code>, <code>/dev/AstraPlus</code>, <code>/dev/myserial</code>
+          (<code>scripts/run_docker_env.sh</code> 등).</li>
+      <li>STM32 시리얼: HUB 경유 USB-UART → <code>Ackman_driver_R2.py</code> → <code>Rosmaster_Lib</code>
+          (라이브러리는 출하 이미지; 포트 오픈은 라이브러리 내부).</li>
+      <li>라이다: <code>laser_bringup_launch.py</code> →
+          <code>ydlidar_ros2_driver</code> / <code>sllidar_ros2</code> (<code>library_ws</code>).</li>
+      <li>카메라: <code>laser_bringup</code>에 포함되지 않음.
+          <code>ros2 launch astra_camera astro_pro_plus.launch.xml</code>
+          (<code>scripts/start_camera.sh</code> 등).</li>
+      <li>RTAB-Map 입력: <code>rtabmap_sync_launch.py</code> —
+          <code>/camera/color/image_raw</code>, <code>/camera/depth/image_raw</code>, <code>/odom</code>, scan.</li>
+    </ul>
+  </div>
+
+  <h3>UML 1 — 패키지 · 런치 포함 관계 (Component)</h3>
+  <div class="uml-wrap">
+    <p class="fig-caption">R2 런타임 구성 — 점선 = launch include / 의존 · 화살표 끝 = 대상</p>
+    <svg class="uml-svg" viewBox="0 0 740 500" xmlns="http://www.w3.org/2000/svg" role="img"
+         aria-label="laser_bringup includes bringup_R2 and ydlidar; Ackman uses Rosmaster_Lib; camera separate">
+      <defs>
+        <marker id="uArr" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L9,3 L0,6 Z" fill="#334155"/>
+        </marker>
+        <marker id="uArrBlue" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L9,3 L0,6 Z" fill="#0284c7"/>
+        </marker>
+        <marker id="uArrOrange" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L9,3 L0,6 Z" fill="#d97706"/>
+        </marker>
+      </defs>
+
+      <!-- library_ws -->
+      <rect x="20" y="16" width="700" height="96" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-dasharray="6 3" stroke-width="1.5"/>
+      <text x="36" y="36" font-size="12" font-weight="800" fill="#475569" font-family="sans-serif">«system» library_ws / 출하 패키지 (fork src 밖)</text>
+
+      <rect x="40" y="48" width="150" height="52" rx="4" fill="#fff" stroke="#0284c7" stroke-width="1.5"/>
+      <text x="115" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#0369a1" font-family="sans-serif">ydlidar_ros2_driver</text>
+      <text x="115" y="88" text-anchor="middle" font-size="9" fill="#64748b" font-family="sans-serif">ydlidar_raw_launch</text>
+
+      <rect x="210" y="48" width="130" height="52" rx="4" fill="#fff" stroke="#0284c7" stroke-width="1.5"/>
+      <text x="275" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#0369a1" font-family="sans-serif">sllidar_ros2</text>
+      <text x="275" y="88" text-anchor="middle" font-size="9" fill="#64748b" font-family="sans-serif">a1 / s2</text>
+
+      <rect x="360" y="48" width="150" height="52" rx="4" fill="#fff" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="435" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#64748b" font-family="sans-serif">astra_camera</text>
+      <text x="435" y="88" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="sans-serif">scripts 별도 기동</text>
+
+      <rect x="530" y="48" width="170" height="52" rx="4" fill="#fff" stroke="#d97706" stroke-width="1.5"/>
+      <text x="615" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#c2410c" font-family="sans-serif">Rosmaster_Lib</text>
+      <text x="615" y="88" text-anchor="middle" font-size="9" fill="#9a3412" font-family="sans-serif">시리얼 라이브러리</text>
+
+      <!-- fork workspace -->
+      <rect x="20" y="132" width="700" height="348" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+      <text x="36" y="154" font-size="12" font-weight="800" fill="#1e40af" font-family="sans-serif">«workspace» code/yahboomcar_ros2_ws/src</text>
+
+      <!-- LEFT: laser_bringup -->
+      <rect x="40" y="172" width="300" height="168" rx="6" fill="#fff" stroke="#1d4ed8" stroke-width="1.8"/>
+      <text x="56" y="194" font-size="11" font-weight="800" fill="#1e3a8a" font-family="sans-serif">yahboomcar_nav</text>
+      <text x="56" y="212" font-size="11" font-weight="700" fill="#334155" font-family="sans-serif">laser_bringup_launch.py</text>
+      <text x="56" y="228" font-size="9" fill="#64748b" font-family="sans-serif">env: ROBOT_TYPE · RPLIDAR_TYPE</text>
+
+      <!-- chip A: include bringup -->
+      <rect id="chip-bringup" x="56" y="244" width="248" height="36" rx="4" fill="#dbeafe" stroke="#2563eb"/>
+      <text x="180" y="266" text-anchor="middle" font-size="11" font-weight="700" fill="#1e40af" font-family="sans-serif">① IncludeLaunch → bringup_R2</text>
+
+      <!-- chip B: include lidar -->
+      <rect x="56" y="290" width="248" height="36" rx="4" fill="#e0f2fe" stroke="#0284c7"/>
+      <text x="180" y="312" text-anchor="middle" font-size="11" font-weight="700" fill="#0369a1" font-family="sans-serif">② IncludeLaunch → ydlidar/sllidar</text>
+
+      <!-- RIGHT: bringup package -->
+      <rect x="400" y="172" width="300" height="168" rx="6" fill="#fff" stroke="#7c3aed" stroke-width="1.8"/>
+      <text x="416" y="194" font-size="11" font-weight="800" fill="#5b21b6" font-family="sans-serif">yahboomcar_bringup (+ base · ctrl)</text>
+      <text x="416" y="212" font-size="10" fill="#334155" font-family="sans-serif">yahboomcar_bringup_R2_launch.py</text>
+
+      <rect x="416" y="228" width="128" height="44" rx="4" fill="#f5f3ff" stroke="#7c3aed"/>
+      <text x="480" y="248" text-anchor="middle" font-size="10" font-weight="700" fill="#5b21b6" font-family="sans-serif">Ackman_driver_R2</text>
+      <text x="480" y="262" text-anchor="middle" font-size="8" fill="#7c3aed" font-family="sans-serif">executable</text>
+
+      <rect x="556" y="228" width="128" height="44" rx="4" fill="#f5f3ff" stroke="#7c3aed"/>
+      <text x="620" y="248" text-anchor="middle" font-size="10" font-weight="700" fill="#5b21b6" font-family="sans-serif">base_node_R2</text>
+      <text x="620" y="262" text-anchor="middle" font-size="8" fill="#7c3aed" font-family="sans-serif">OdomPublisher</text>
+
+      <rect x="416" y="284" width="128" height="36" rx="4" fill="#ecfdf5" stroke="#059669"/>
+      <text x="480" y="306" text-anchor="middle" font-size="10" font-weight="700" fill="#065f46" font-family="sans-serif">yahboom_joy_R2</text>
+      <rect x="556" y="284" width="128" height="36" rx="4" fill="#ecfdf5" stroke="#059669"/>
+      <text x="620" y="306" text-anchor="middle" font-size="10" font-weight="700" fill="#065f46" font-family="sans-serif">joy_node</text>
+
+      <!-- Arrow 1: chip bringup RIGHT edge → bringup package LEFT (horizontal, aligned to chip center) -->
+      <!-- chip: x=56..304, y=244..280, right=304, cy=262 -->
+      <!-- right box left=400 -->
+      <path d="M304 262 L398 262" stroke="#334155" stroke-width="2" fill="none" marker-end="url(#uArr)" stroke-dasharray="5 3"/>
+      <text x="350" y="252" text-anchor="middle" font-size="10" font-weight="700" fill="#334155" font-family="sans-serif">«include»</text>
+
+      <!-- Arrow 2: chip lidar TOP → ydlidar package BOTTOM (orthogonal) -->
+      <!-- chip lidar: x=56..304, y=290..326, cx=180, top=290 -->
+      <!-- ydlidar: x=40..190, y=48..100, bottom=100, cx=115 -->
+      <path d="M180 290 L180 128 L115 128 L115 102" stroke="#0284c7" stroke-width="2" fill="none" marker-end="url(#uArrBlue)" stroke-dasharray="5 3"/>
+      <text x="198" y="150" font-size="10" font-weight="700" fill="#0284c7" font-family="sans-serif">«include»</text>
+      <text x="198" y="164" font-size="9" fill="#0369a1" font-family="sans-serif">4ROS/a1/s2</text>
+
+      <!-- Arrow 3: Ackman TOP → Rosmaster_Lib BOTTOM -->
+      <!-- Ackman: x=416..544, y=228..272, cx=480, top=228 -->
+      <!-- Rosmaster: x=530..700, y=48..100, bottom=100, cx=615 -->
+      <path d="M480 228 L480 128 L615 128 L615 102" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#uArrOrange)" stroke-dasharray="5 3"/>
+      <text x="500" y="150" font-size="10" font-weight="700" fill="#c2410c" font-family="sans-serif">import / 호출</text>
+      <text x="500" y="164" font-size="9" fill="#9a3412" font-family="sans-serif">Rosmaster()</text>
+
+      <!-- rtabmap + camera note -->
+      <rect x="40" y="360" width="300" height="100" rx="6" fill="#fff" stroke="#059669" stroke-width="1.8"/>
+      <text x="56" y="384" font-size="11" font-weight="800" fill="#065f46" font-family="sans-serif">map_rtabmap / rtabmap_sync</text>
+      <text x="56" y="404" font-size="10" fill="#334155" font-family="sans-serif">rgbd_sync + rtabmap_slam</text>
+      <text x="56" y="424" font-size="9" fill="#047857" font-family="sans-serif">구독: /scan · /camera/* · /odom</text>
+      <text x="56" y="444" font-size="9" fill="#64748b" font-family="sans-serif">include: laser_bringup + rtabmap</text>
+
+      <rect x="360" y="360" width="340" height="100" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="376" y="384" font-size="11" font-weight="800" fill="#475569" font-family="sans-serif">카메라 (laser_bringup에 없음)</text>
+      <text x="376" y="408" font-size="10" fill="#334155" font-family="sans-serif">scripts → astra_camera</text>
+      <text x="376" y="428" font-size="10" fill="#334155" font-family="sans-serif">astro_pro_plus.launch.xml</text>
+      <text x="376" y="448" font-size="9" fill="#64748b" font-family="sans-serif">위 회색 박스와 동일 패키지</text>
+
+      <!-- dashed note camera not from laser_bringup -->
+      <path d="M435 100 L435 200 L500 360" stroke="#94a3b8" stroke-width="1.2" fill="none" stroke-dasharray="3 3"/>
+    </svg>
+  </div>
+
+  <h3>UML 2 — 클래스 · 토픽 시퀀스 (R2 핵심 경로)</h3>
+  <div class="uml-wrap">
+    <p class="fig-caption">객체/노드 간 메시지 (실제 create_publisher / create_subscription 이름)</p>
+    <svg class="uml-svg" viewBox="0 0 740 340" xmlns="http://www.w3.org/2000/svg">
+      <!-- actors -->
+      <rect x="20" y="20" width="100" height="44" rx="4" fill="#ffedd5" stroke="#d97706"/>
+      <text x="70" y="38" text-anchor="middle" font-size="10" font-weight="800" fill="#92400e" font-family="sans-serif">Rosmaster</text>
+      <text x="70" y="52" text-anchor="middle" font-size="8" fill="#b45309" font-family="sans-serif">Lib API</text>
+
+      <rect x="140" y="20" width="120" height="44" rx="4" fill="#f5f3ff" stroke="#7c3aed"/>
+      <text x="200" y="38" text-anchor="middle" font-size="10" font-weight="800" fill="#5b21b6" font-family="sans-serif">yahboomcar_driver</text>
+      <text x="200" y="52" text-anchor="middle" font-size="8" fill="#7c3aed" font-family="sans-serif">Ackman_driver_R2</text>
+
+      <rect x="280" y="20" width="100" height="44" rx="4" fill="#f5f3ff" stroke="#7c3aed"/>
+      <text x="330" y="38" text-anchor="middle" font-size="10" font-weight="800" fill="#5b21b6" font-family="sans-serif">OdomPublisher</text>
+      <text x="330" y="52" text-anchor="middle" font-size="8" fill="#7c3aed" font-family="sans-serif">base_node_R2</text>
+
+      <rect x="400" y="20" width="100" height="44" rx="4" fill="#e0f2fe" stroke="#0284c7"/>
+      <text x="450" y="38" text-anchor="middle" font-size="10" font-weight="800" fill="#0369a1" font-family="sans-serif">ydlidar_node</text>
+      <text x="450" y="52" text-anchor="middle" font-size="8" fill="#0c4a6e" font-family="sans-serif">library_ws</text>
+
+      <rect x="520" y="20" width="100" height="44" rx="4" fill="#e0f2fe" stroke="#0284c7"/>
+      <text x="570" y="38" text-anchor="middle" font-size="10" font-weight="800" fill="#0369a1" font-family="sans-serif">astra_camera</text>
+      <text x="570" y="52" text-anchor="middle" font-size="8" fill="#0c4a6e" font-family="sans-serif">astro_pro_plus</text>
+
+      <rect x="640" y="20" width="80" height="44" rx="4" fill="#d1fae5" stroke="#059669"/>
+      <text x="680" y="38" text-anchor="middle" font-size="10" font-weight="800" fill="#065f46" font-family="sans-serif">rtabmap</text>
+      <text x="680" y="52" text-anchor="middle" font-size="8" fill="#047857" font-family="sans-serif">+ rgbd_sync</text>
+
+      <!-- lifelines -->
+      <line x1="70" y1="64" x2="70" y2="300" stroke="#94a3b8" stroke-dasharray="3 3"/>
+      <line x1="200" y1="64" x2="200" y2="300" stroke="#94a3b8" stroke-dasharray="3 3"/>
+      <line x1="330" y1="64" x2="330" y2="300" stroke="#94a3b8" stroke-dasharray="3 3"/>
+      <line x1="450" y1="64" x2="450" y2="300" stroke="#94a3b8" stroke-dasharray="3 3"/>
+      <line x1="570" y1="64" x2="570" y2="300" stroke="#94a3b8" stroke-dasharray="3 3"/>
+      <line x1="680" y1="64" x2="680" y2="300" stroke="#94a3b8" stroke-dasharray="3 3"/>
+
+      <!-- messages -->
+      <path d="M200 90 L80 90" stroke="#d97706" stroke-width="1.5" fill="none" marker-end="url(#uArr)"/>
+      <text x="140" y="84" text-anchor="middle" font-size="9" fill="#c2410c" font-family="sans-serif">set_car_motion(vx,vy,w)</text>
+
+      <path d="M80 115 L190 115" stroke="#d97706" stroke-width="1.5" fill="none" marker-end="url(#uArr)"/>
+      <text x="140" y="109" text-anchor="middle" font-size="9" fill="#c2410c" font-family="sans-serif">get_motion/imu/…</text>
+
+      <path d="M200 145 L320 145" stroke="#7c3aed" stroke-width="1.5" fill="none" marker-end="url(#uArr)"/>
+      <text x="260" y="139" text-anchor="middle" font-size="9" fill="#5b21b6" font-family="sans-serif">vel_raw (Twist)</text>
+
+      <path d="M330 175 L670 175" stroke="#7c3aed" stroke-width="1.5" fill="none" marker-end="url(#uArr)" stroke-dasharray="2 2"/>
+      <text x="500" y="169" text-anchor="middle" font-size="9" fill="#5b21b6" font-family="sans-serif">odom_raw → (ekf) → /odom</text>
+
+      <path d="M450 210 L670 210" stroke="#0284c7" stroke-width="1.5" fill="none" marker-end="url(#uArr)"/>
+      <text x="560" y="204" text-anchor="middle" font-size="9" fill="#0369a1" font-family="sans-serif">/scan LaserScan</text>
+
+      <path d="M570 245 L670 245" stroke="#0284c7" stroke-width="1.5" fill="none" marker-end="url(#uArr)"/>
+      <text x="620" y="239" text-anchor="middle" font-size="9" fill="#0369a1" font-family="sans-serif">/camera/color|depth/*</text>
+
+      <path d="M680 280 L200 280" stroke="#059669" stroke-width="1.5" fill="none" marker-end="url(#uArr)" opacity="0.5"/>
+      <text x="440" y="274" text-anchor="middle" font-size="9" fill="#065f46" font-family="sans-serif">/map OccupancyGrid (발행)</text>
+
+      <path d="M140 310 L190 310" stroke="#334155" stroke-width="1.2" fill="none" marker-end="url(#uArr)"/>
+      <text x="280" y="320" text-anchor="middle" font-size="9" fill="#64748b" font-family="sans-serif">입력: cmd_vel (joy / keyboard / nav) → Ackman_driver_R2</text>
+    </svg>
+  </div>
+
+  <h3>PlantUML 텍스트 (복사용 · 검색용 키워드 포함)</h3>
+  <pre class="plantuml-block"><code>@startuml R2_code_structure
+' 검색 키워드가 그대로 들어 있음 — IDE에서 아래 문자열로 찾으면 됨
+
+package "library_ws (출하, fork 밖)" {
+  [ydlidar_ros2_driver]
+  [sllidar_ros2]
+  [astra_camera]
+  [Rosmaster_Lib]
+}
+
+package "yahboomcar_nav" {
+  (laser_bringup_launch.py)
+  (map_rtabmap_launch.py)
+  (rtabmap_sync_launch.py)
+  (rtabmap_localization_launch.py)
+}
+
+package "yahboomcar_bringup" {
+  class yahboomcar_driver &lt;&lt;Ackman_driver_R2.py&gt;&gt; {
+    +cmd_vel_callback()
+    +pub_data()
+    -car: Rosmaster
+  }
+}
+
+package "yahboomcar_base_node" {
+  class OdomPublisher &lt;&lt;base_node_R2.cpp&gt;&gt; {
+    +handle_vel()
+    pub: odom_raw
+    sub: vel_raw
+  }
+}
+
+package "yahboomcar_ctrl" {
+  [yahboom_joy_R2]
+  [yahboom_keyboard]
+}
+
+(laser_bringup_launch.py) ..&gt; (yahboomcar_bringup_R2_launch.py) : include ROBOT_TYPE=r2
+(laser_bringup_launch.py) ..&gt; [ydlidar_ros2_driver] : RPLIDAR_TYPE=4ROS
+(laser_bringup_launch.py) ..&gt; [sllidar_ros2] : a1/s2
+
+yahboomcar_driver --> [Rosmaster_Lib] : set_car_motion / get_*
+yahboomcar_driver --> OdomPublisher : vel_raw
+[ydlidar_ros2_driver] --> (rtabmap) : /scan
+[astra_camera] --> (rtabmap) : /camera/color/image_raw\n/camera/depth/image_raw
+OdomPublisher --> (rtabmap) : /odom (via ekf)
+
+note right of [ydlidar_ros2_driver]
+  배선: cam/lidar → USB HUB 확장판 → Jetson
+  장치: /dev/ydlidar, /dev/AstraPlus (udev)
+end note
+@enduml</code></pre>
+
+  <h3>키워드 → 파일 검색표</h3>
+  <p class="note-mini">터미널 예:
+    <code>rg -n 'Ackman_driver_R2' code/</code> ·
+    <code>rg -n 'vel_raw' code/</code> ·
+    <code>rg -n '/dev/myserial' scripts/</code>
+  </p>
+
+  <table class="kw-table">
+    <thead>
+      <tr><th>키워드 (검색어)</th><th>어디에 있나</th><th>역할</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>Ackman_driver_R2</code></td>
+        <td><code>yahboomcar_bringup/…/Ackman_driver_R2.py</code><br>
+            <code>setup.py</code> entry_points<br>
+            <code>yahboomcar_bringup_R2_launch.py</code></td>
+        <td>R2 본체 드라이버 노드. <code>Rosmaster</code> 호출</td>
+      </tr>
+      <tr>
+        <td><code>Rosmaster_Lib</code> / <code>Rosmaster</code></td>
+        <td><code>Ackman_driver_R2.py</code> import<br>
+            (구현체는 시스템 패키지)</td>
+        <td>STM32 시리얼 프로토콜 은닉 API</td>
+      </tr>
+      <tr>
+        <td><code>cmd_vel</code></td>
+        <td>driver 구독 · <code>yahboom_joy_R2</code> · <code>yahboom_keyboard</code> 발행</td>
+        <td>속도 명령 (Twist)</td>
+      </tr>
+      <tr>
+        <td><code>vel_raw</code></td>
+        <td><code>Ackman_driver_R2.py</code> 발행<br>
+            <code>base_node_R2.cpp</code> 구독</td>
+        <td>보드에서 읽은 속도 → 오돔 적분 입력</td>
+      </tr>
+      <tr>
+        <td><code>odom_raw</code></td>
+        <td><code>base_node_R2.cpp</code> 발행</td>
+        <td>휠 오도메트리 (EKF 전)</td>
+      </tr>
+      <tr>
+        <td><code>imu/data_raw</code></td>
+        <td><code>Ackman_driver_R2.py</code></td>
+        <td>IMU raw → <code>imu_filter_madgwick</code></td>
+      </tr>
+      <tr>
+        <td><code>laser_bringup_launch</code></td>
+        <td><code>yahboomcar_nav/launch/laser_bringup_launch.py</code></td>
+        <td>bringup + 라이다 + laser TF</td>
+      </tr>
+      <tr>
+        <td><code>ROBOT_TYPE</code> / <code>r2</code></td>
+        <td><code>laser_bringup_launch.py</code><br>
+            <code>scripts/native_ros_setup.bash</code></td>
+        <td>R2 시 bringup_R2 선택</td>
+      </tr>
+      <tr>
+        <td><code>RPLIDAR_TYPE</code> / <code>4ROS</code></td>
+        <td>동일 + env</td>
+        <td><code>ydlidar_raw_launch</code> 선택</td>
+      </tr>
+      <tr>
+        <td><code>ydlidar_ros2_driver</code> / <code>ydlidar_raw_launch</code></td>
+        <td><code>laser_bringup_launch.py</code><br>
+            <code>scripts/diagnose_robot.sh</code></td>
+        <td>4ROS 라이다 드라이버 (library_ws)</td>
+      </tr>
+      <tr>
+        <td><code>sllidar_ros2</code> / <code>sllidar_launch</code></td>
+        <td><code>laser_bringup_launch.py</code></td>
+        <td>a1/s2 라이다</td>
+      </tr>
+      <tr>
+        <td><code>astra_camera</code> / <code>astro_pro_plus</code></td>
+        <td><code>scripts/start_camera.sh</code><br>
+            <code>rtabmap_mapping_core.sh</code></td>
+        <td>깊이 카메라 (bringup에 미포함)</td>
+      </tr>
+      <tr>
+        <td><code>/camera/color/image_raw</code><br><code>/camera/depth/image_raw</code></td>
+        <td><code>rtabmap_sync_launch.py</code> remappings</td>
+        <td>RTAB-Map RGB-D 입력</td>
+      </tr>
+      <tr>
+        <td><code>rgbd_sync</code> / <code>rtabmap_slam</code></td>
+        <td><code>rtabmap_sync_launch.py</code></td>
+        <td>SLAM 노드</td>
+      </tr>
+      <tr>
+        <td><code>subscribe_scan</code> / <code>Reg/Force3DoF</code></td>
+        <td><code>rtabmap_sync_launch.py</code> parameters</td>
+        <td>2D+라이다 융합 SLAM 설정</td>
+      </tr>
+      <tr>
+        <td><code>/dev/myserial</code></td>
+        <td><code>scripts/run_docker_env.sh</code><br>
+            <code>scripts/diagnose_robot.sh</code><br>
+            <code>scripts/rtabmap_mapping_core.sh</code></td>
+        <td>STM32 시리얼 장치 이름 (udev)</td>
+      </tr>
+      <tr>
+        <td><code>/dev/ydlidar</code></td>
+        <td>위 scripts 동일</td>
+        <td>라이다 장치 이름 (USB HUB → Jetson 후 udev)</td>
+      </tr>
+      <tr>
+        <td><code>/dev/AstraPlus</code> / <code>astradepth</code></td>
+        <td><code>run_docker_env.sh</code>, <code>rtabmap_mapping_core.sh</code></td>
+        <td>카메라 장치 이름 (USB HUB → Jetson 후 udev)</td>
+      </tr>
+      <tr>
+        <td><code>LIBRARY_WS_HOST</code></td>
+        <td><code>scripts/run_docker_env.sh</code><br>
+            <code>native_ros_setup.bash</code></td>
+        <td>라이다/SLAM 바이너리 경로</td>
+      </tr>
+      <tr>
+        <td><code>base_node_R2</code> / <code>OdomPublisher</code></td>
+        <td><code>yahboomcar_base_node/src/base_node_R2.cpp</code></td>
+        <td>vel_raw → odom_raw 적분</td>
+      </tr>
+      <tr>
+        <td><code>yahboom_joy_R2</code></td>
+        <td><code>yahboomcar_ctrl/…/yahboom_joy_R2.py</code><br>
+            bringup_R2 launch</td>
+        <td>조이스틱 → cmd_vel</td>
+      </tr>
+      <tr>
+        <td><code>static_transform_publisher</code> / <code>base_link</code> / <code>laser</code></td>
+        <td><code>laser_bringup_launch.py</code></td>
+        <td>라이다 고정 TF</td>
+      </tr>
+      <tr>
+        <td><code>map_rtabmap_launch</code></td>
+        <td><code>yahboomcar_nav/launch/map_rtabmap_launch.py</code></td>
+        <td>laser_bringup + rtabmap_sync 묶음</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="box box-goal"><strong>물리 배선</strong><p style="margin:0;">보드·케이블 상세는 <a href="R2_HW_배선.html">R2_HW_배선.html</a>. 장치 노드: <code>/dev/myserial</code>, <code>/dev/ydlidar</code>, <code>/dev/AstraPlus</code>.</p></div>
+</section>
+</div>
+<footer>
+  ROSMASTER R2 Fork &mdash; ROS2 하위 레이어 문서 &mdash; 2026-07-25
+</footer>
+</body>
+</html>
