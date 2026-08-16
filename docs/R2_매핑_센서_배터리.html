@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>R2 매핑 입력 · IMU · Git · 배터리 — 질문 답변</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --text: #1a1d26;
+      --muted: #5c6370;
+      --accent: #1d4ed8;
+      --accent-light: #dbeafe;
+      --ok: #047857;
+      --ok-bg: #d1fae5;
+      --warn: #b45309;
+      --warn-bg: #fef3c7;
+      --err: #b91c1c;
+      --err-bg: #fee2e2;
+      --border: #d8dee6;
+      --code-bg: #eef2f6;
+      --ink: #0f172a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Noto Sans CJK KR", "Noto Sans KR", "NanumGothic", "Pretendard", sans-serif;
+      line-height: 1.75;
+      color: var(--text);
+      background: var(--bg);
+      margin: 0;
+      padding: 0;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 2rem 1.4rem 4rem; }
+    header {
+      background: #0f172a;
+      color: #fff;
+      padding: 2.4rem 1.5rem;
+    }
+    header h1 { margin: 0 0 0.45rem; font-size: 1.7rem; font-weight: 700; }
+    header .sub { opacity: 0.9; margin: 0; }
+    header .meta { margin-top: 0.9rem; font-size: 0.85rem; opacity: 0.75; }
+    nav.toc {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 1.2rem 1.4rem;
+      margin-bottom: 1.6rem;
+    }
+    nav.toc h2 { margin: 0 0 0.6rem; font-size: 1rem; color: var(--muted); }
+    nav.toc ol { margin: 0; padding-left: 1.3rem; }
+    nav.toc a { color: var(--accent); text-decoration: none; }
+    nav.toc a:hover { text-decoration: underline; }
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 1.45rem 1.6rem;
+      margin-bottom: 1.35rem;
+    }
+    h2 {
+      font-size: 1.32rem;
+      margin: 0 0 1rem;
+      color: var(--ink);
+      border-bottom: 3px solid var(--accent-light);
+      padding-bottom: 0.35rem;
+    }
+    h3 { font-size: 1.08rem; margin: 1.4rem 0 0.65rem; color: #1e293b; }
+    p { margin: 0.55rem 0; }
+    ul, ol { margin: 0.45rem 0; padding-left: 1.4rem; }
+    li { margin: 0.3rem 0; }
+    code, pre {
+      font-family: "NanumGothicCoding", "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 0.88em;
+    }
+    code { background: var(--code-bg); padding: 0.12em 0.38em; }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 0.95rem 1.1rem;
+      overflow-x: auto;
+      margin: 0.7rem 0;
+    }
+    pre code { background: none; padding: 0; color: inherit; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      margin: 0.9rem 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.55rem 0.7rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #eef2f7; font-weight: 700; }
+    tr:nth-child(even) td { background: #fafbfc; }
+    .box {
+      padding: 0.95rem 1.15rem;
+      margin: 0.95rem 0;
+      border-left: 5px solid;
+    }
+    .box-ok { background: var(--ok-bg); border-color: var(--ok); }
+    .box-warn { background: var(--warn-bg); border-color: var(--warn); }
+    .box-err { background: var(--err-bg); border-color: var(--err); }
+    .box-info { background: var(--accent-light); border-color: var(--accent); }
+    .box strong.ttl { display: block; margin-bottom: 0.3rem; }
+    .tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      padding: 0.12rem 0.45rem;
+      font-weight: 700;
+      margin-right: 0.2rem;
+      letter-spacing: 0.02em;
+    }
+    .tag-ok { background: #d1fae5; color: #065f46; }
+    .tag-no { background: #fee2e2; color: #991b1b; }
+    .tag-mid { background: #fef3c7; color: #92400e; }
+    .tag-info { background: #dbeafe; color: #1e40af; }
+    .fig {
+      margin: 1.1rem 0;
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      padding: 0.7rem;
+      overflow-x: auto;
+    }
+    .fig svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+    .figcap {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 0.45rem;
+    }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.84rem;
+      margin-top: 1.5rem;
+    }
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+    }
+    @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+    @media print {
+      body { background: #fff; }
+      header { break-after: avoid; }
+      section { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="wrap" style="padding:0;">
+    <h1>R2 매핑은 무엇으로 그려지나</h1>
+    <p class="sub">조이스틱으로 지도를 그릴 때 — 입력 확인, IMU 보정, Git 위치, GPU/AI 여부, 배터리·속도</p>
+    <p class="meta">작성: 2026-08-16 &nbsp;|&nbsp; 대상: ROSMASTER R2 · Jetson Orin · Ubuntu 22.04 · ROS 2 Humble &nbsp;|&nbsp; 활성 맵: <code>집</code> (loc_p37.4386_p127.1378)</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>목차</h2>
+  <ol>
+    <li><a href="#answer">한 장 요약</a></li>
+    <li><a href="#not-four">네 가지로 맵을 그리나?</a></li>
+    <li><a href="#flow">데이터가 흐르는 순서</a></li>
+    <li><a href="#continue">바탕화면 ‘매핑 이어서’</a></li>
+    <li><a href="#gpu">GPU AI 러닝을 쓰나?</a></li>
+    <li><a href="#check">입력이 잘 들어오는지 확인하는 법</a></li>
+    <li><a href="#imu">IMU와 센서 보정을 하나?</a></li>
+    <li><a href="#git">Git은 어디에 있나</a></li>
+    <li><a href="#battery">전원이 금방 닳고 차가 느려지는 이유</a></li>
+    <li><a href="#howto">지금 당장 할 일</a></li>
+  </ol>
+</nav>
+
+<section id="answer">
+  <h2>1. 한 장 요약</h2>
+  <table>
+    <tr><th>질문</th><th>답</th></tr>
+    <tr>
+      <td>조이스틱으로 지도가 그려진다. 입력이 잘 오나?</td>
+      <td>지도가 늘어나면 <strong>라이다·카메라·오도메트리가 들어오고 있다</strong>는 뜻입니다. “잘” 오는지는 Hz를 재봐야 합니다. 확인 명령은 7장.</td>
+    </tr>
+    <tr>
+      <td>카메라 + 라이다 + 앞바퀴 조향 + 뒷바퀴 구동, 이 4개로 맵핑하나?</td>
+      <td><strong>아니요.</strong> 맵을 그리는 센서는 카메라(RGB+깊이)와 라이다입니다. 앞조향·뒷구동은 <em>움직이는 액추에이터</em>입니다. 바퀴 회전량과 IMU는 위치(오도메트리)를 만드는 보조 입력입니다.</td>
+    </tr>
+    <tr>
+      <td>IMU 등 센서도 보정하나?</td>
+      <td><strong>매핑 시작 때 자동 보정은 하지 않습니다.</strong> IMU는  Madgwick 필터 + EKF로 <em>융합</em>만 합니다. 카메라 내부 파라미터는 Astra 드라이버가 실어 줍니다. 바퀴 스케일 보정 스크립트는 있으나 지금 스택에서 자동 실행되지 않습니다.</td>
+    </tr>
+    <tr>
+      <td>Git은 어디?</td>
+      <td>메인: <code>/home/jetson/ROSMASTER-R2-fork</code> → GitHub <code>abraxas4/ROSMASTER-R2-fork</code>. 실제로 돌아가는 ROS 패키지는 <code>~/yahboomcar_ros2_ws</code> (이 폴더 자체는 git 저장소가 아님).</td>
+    </tr>
+    <tr>
+      <td>바탕화면에서 기존 맵에 계속 학습?</td>
+      <td><strong>신경망을 학습시키는 것이 아닙니다.</strong> RTAB-Map이 기존 DB에 노드를 이어 붙이는 <em>증분 SLAM</em>입니다. 아이콘 이름: <strong>R2 매핑 이어서</strong>.</td>
+    </tr>
+    <tr>
+      <td>ROS 2 매핑에 GPU AI 러닝이 있나?</td>
+      <td><strong>없습니다.</strong> 고전 특징점 + 스캔 정합 SLAM입니다. Jetson GPU로 YOLO/MediaPipe를 돌리는 패키지는 워크스페이스에 있지만, 매핑 launch는 켜지 않습니다.</td>
+    </tr>
+    <tr>
+      <td>10평 한 바퀴에 배터리가 끝나고 더 느려진다</td>
+      <td>느린 조이스틱 설정(0.2 m/s)과 <strong>전압 강하로 모터가 힘 빠지는 현상</strong>이 겹친 것으로 보입니다. Jetson은 지금 <code>MAXN_SUPER</code>(최고 전력)입니다. 느리게 한 것 자체는 맵 품질에 이롭고, 방전 직전 속도 저하는 품질을 해칩니다.</td>
+    </tr>
+  </table>
+</section>
+
+<!-- 3 -->
+<section id="not-four">
+  <h2>3. 네 가지로 맵을 그리나?</h2>
+  <p>앞에서 말한 네 가지는 역할이 둘로 갈립니다.</p>
+  <table>
+    <tr>
+      <th>항목</th>
+      <th>종류</th>
+      <th>맵에 쓰는가</th>
+      <th>하는 일</th>
+    </tr>
+    <tr>
+      <td>Orbbec Astra Plus 카메라</td>
+      <td><span class="tag tag-ok">센서</span></td>
+      <td>예 — RGB + 깊이</td>
+      <td>방 모양, 가구, 루프 클로저(같은 장소 재방문) 인식</td>
+    </tr>
+    <tr>
+      <td>YDLIDAR 4ROS</td>
+      <td><span class="tag tag-ok">센서</span></td>
+      <td>예 — <code>/scan</code></td>
+      <td>2D 장애물 윤곽. RTAB-Map 정합 전략 <code>Reg/Strategy=1</code>(ICP)</td>
+    </tr>
+    <tr>
+      <td>앞바퀴 조향 (서보)</td>
+      <td><span class="tag tag-mid">액추에이터</span></td>
+      <td>직접은 아님</td>
+      <td>조이스틱 좌우(<code>cmd_vel.linear.y</code>)로 조향각 명령</td>
+    </tr>
+    <tr>
+      <td>뒷바퀴 구동 (520 모터 2개)</td>
+      <td><span class="tag tag-mid">액추에이터</span></td>
+      <td>직접은 아님</td>
+      <td>조이스틱 앞뒤(<code>cmd_vel.linear.x</code>)로 전진/후진</td>
+    </tr>
+    <tr>
+      <td>바퀴 엔코더 + 조향각 피드백</td>
+      <td><span class="tag tag-ok">센서(내부)</span></td>
+      <td>간접 — 오도메트리</td>
+      <td><code>/odom_raw</code> → EKF → <code>/odom</code>. “내가 얼마나 움직였나”</td>
+    </tr>
+    <tr>
+      <td>확장보드 IMU</td>
+      <td><span class="tag tag-ok">센서</span></td>
+      <td>간접 — 오도메트리만</td>
+      <td><code>/imu/data_raw</code> → Madgwick → EKF. RTAB-Map은 IMU를 직접 구독하지 않음</td>
+    </tr>
+  </table>
+
+  <div class="box box-info">
+    <strong class="ttl">정리</strong>
+    맵의 그림은 <strong>카메라 + 라이다</strong>가 그립니다.<br>
+    맵 위에서 로봇 점이 움직이는 위치는 <strong>바퀴 오도메트리 + IMU(EKF)</strong>가 잡습니다.<br>
+    앞조향·뒷구동은 그 점을 옮기는 핸들·액셀입니다.
+  </div>
+
+  <h3>RTAB-Map이 실제로 구독하는 것</h3>
+  <p>파일: <code>scripts/launch/rtabmap_managed.launch.py</code></p>
+  <table>
+    <tr><th>파라미터 / 토픽</th><th>값</th><th>의미</th></tr>
+    <tr><td><code>subscribe_rgbd</code></td><td>true</td><td>동기화된 RGB-D 이미지 사용</td></tr>
+    <tr><td><code>subscribe_scan</code></td><td>true</td><td>2D 라이다 사용</td></tr>
+    <tr><td><code>/rgbd_image</code></td><td>카메라 sync 출력</td><td>색 + 깊이 + camera_info</td></tr>
+    <tr><td><code>/scan</code></td><td>4ROS</td><td>레이저 스캔</td></tr>
+    <tr><td><code>/odom</code></td><td>EKF 출력</td><td>위치 추정</td></tr>
+    <tr><td><code>subscribe_imu</code></td><td>없음</td><td>RTAB-Map은 IMU를 직접 안 봄</td></tr>
+    <tr><td><code>Optimizer/GravitySigma</code></td><td>0</td><td>IMU 중력 제약 끔 (이미 2D)</td></tr>
+  </table>
+</section>
+
+<!-- 4 -->
+<section id="flow">
+  <h2>4. 데이터가 흐르는 순서</h2>
+  <p>곡선 없이, 가로·세로만 사용했습니다.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 920 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="매핑 데이터 흐름 순서도">
+      <rect x="0" y="0" width="920" height="620" fill="#f8fafc"/>
+      <!-- boxes -->
+      <rect x="20" y="20" width="180" height="44" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+      <text x="110" y="47" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">Xbox형 조이스틱</text>
+
+      <rect x="260" y="20" width="180" height="44" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="350" y="47" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">joy_node  /joy</text>
+
+      <rect x="500" y="20" width="200" height="44" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="600" y="47" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">yahboom_joy_R2</text>
+
+      <rect x="760" y="20" width="140" height="44" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+      <text x="830" y="47" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">/cmd_vel</text>
+
+      <rect x="720" y="110" width="180" height="50" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="810" y="132" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">Ackman_driver_R2</text>
+      <text x="810" y="150" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">모터보드 시리얼</text>
+
+      <rect x="400" y="110" width="160" height="50" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
+      <text x="480" y="132" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">앞바퀴 조향</text>
+      <text x="480" y="150" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">서보 (액추에이터)</text>
+
+      <rect x="180" y="110" width="160" height="50" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
+      <text x="260" y="132" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">뒷바퀴 구동</text>
+      <text x="260" y="150" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">520 모터 (액추에이터)</text>
+
+      <rect x="20" y="220" width="160" height="50" fill="#d1fae5" stroke="#047857" stroke-width="2"/>
+      <text x="100" y="242" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">Astra 카메라</text>
+      <text x="100" y="260" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">RGB + Depth</text>
+
+      <rect x="220" y="220" width="160" height="50" fill="#d1fae5" stroke="#047857" stroke-width="2"/>
+      <text x="300" y="242" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">YDLIDAR 4ROS</text>
+      <text x="300" y="260" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">/scan</text>
+
+      <rect x="420" y="220" width="160" height="50" fill="#d1fae5" stroke="#047857" stroke-width="2"/>
+      <text x="500" y="242" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">IMU 원시값</text>
+      <text x="500" y="260" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">/imu/data_raw</text>
+
+      <rect x="620" y="220" width="160" height="50" fill="#d1fae5" stroke="#047857" stroke-width="2"/>
+      <text x="700" y="242" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">바퀴 피드백</text>
+      <text x="700" y="260" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">/odom_raw  /vel_raw</text>
+
+      <rect x="20" y="330" width="180" height="44" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="110" y="357" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">rgbd_sync</text>
+
+      <rect x="420" y="330" width="180" height="44" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="510" y="357" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">Madgwick 필터</text>
+
+      <rect x="660" y="330" width="180" height="44" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="750" y="357" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">EKF 융합</text>
+
+      <rect x="220" y="430" width="480" height="56" fill="#1e3a8a" stroke="#0f172a" stroke-width="2"/>
+      <text x="460" y="456" text-anchor="middle" font-size="15" fill="#fff" font-family="Noto Sans KR, sans-serif">RTAB-Map (rtabmap_slam)</text>
+      <text x="460" y="474" text-anchor="middle" font-size="11" fill="#bfdbfe" font-family="Noto Sans KR, sans-serif">구독: /rgbd_image + /scan + /odom     GPU 학습 없음</text>
+
+      <rect x="220" y="540" width="220" height="50" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+      <text x="330" y="562" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">맵 DB 이어쓰기</text>
+      <text x="330" y="580" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">집.db  약 548MB</text>
+
+      <rect x="480" y="540" width="220" height="50" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+      <text x="590" y="562" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">화면 (rtabmap_viz)</text>
+      <text x="590" y="580" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">바탕화면 맵 보기</text>
+
+      <!-- orthogonal connectors -->
+      <g stroke="#475569" stroke-width="2" fill="none">
+        <polyline points="200,42 260,42"/>
+        <polyline points="440,42 500,42"/>
+        <polyline points="700,42 760,42"/>
+        <polyline points="830,64 830,110"/>
+        <polyline points="720,135 560,135"/>
+        <polyline points="400,135 340,135"/>
+        <polyline points="100,270 100,330"/>
+        <polyline points="300,270 300,458 220,458"/>
+        <polyline points="500,270 500,330"/>
+        <polyline points="700,270 750,270 750,330"/>
+        <polyline points="110,374 110,400 460,400 460,430"/>
+        <polyline points="510,374 510,400"/>
+        <polyline points="750,374 750,400 460,400"/>
+        <polyline points="460,486 460,510 330,510 330,540"/>
+        <polyline points="460,510 590,510 590,540"/>
+      </g>
+      <g fill="#475569">
+        <polygon points="256,38 260,42 256,46"/>
+        <polygon points="496,38 500,42 496,46"/>
+        <polygon points="756,38 760,42 756,46"/>
+        <polygon points="826,106 830,110 834,106"/>
+        <polygon points="564,131 560,135 564,139"/>
+        <polygon points="344,131 340,135 344,139"/>
+        <polygon points="96,326 100,330 104,326"/>
+        <polygon points="224,454 220,458 224,462"/>
+        <polygon points="496,326 500,330 504,326"/>
+        <polygon points="746,326 750,330 754,326"/>
+        <polygon points="456,426 460,430 464,426"/>
+        <polygon points="326,536 330,540 334,536"/>
+        <polygon points="586,536 590,540 594,536"/>
+      </g>
+    </svg>
+    <div class="figcap">그림 1. 조이스틱 → 구동 / 센서 → RTAB-Map. 빨강=움직임, 초록=센서, 파랑=지도.</div>
+  </div>
+
+  <h3>조이스틱이 차에 닿는 경로</h3>
+  <div class="fig">
+    <svg viewBox="0 0 900 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="조이스틱 버튼 흐름">
+      <rect x="0" y="0" width="900" height="220" fill="#f8fafc"/>
+      <rect x="20" y="30" width="200" height="50" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+      <text x="120" y="52" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">START / 버튼 9</text>
+      <text x="120" y="70" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">Joy_active 토글</text>
+
+      <rect x="280" y="30" width="200" height="50" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="380" y="52" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">왼쪽 스틱 앞뒤</text>
+      <text x="380" y="70" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">linear.x  뒷바퀴</text>
+
+      <rect x="540" y="30" width="200" height="50" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="640" y="52" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">왼쪽 스틱 좌우</text>
+      <text x="640" y="70" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">linear.y  앞조향</text>
+
+      <rect x="20" y="140" width="860" height="50" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+      <text x="450" y="162" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">속도 한도 xspeed_limit = 0.2 m/s  ×  기어(1 또는 1/4)  ×  데드존 0.45</text>
+      <text x="450" y="180" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">스틱을 절반 이하로 밀면 0. 기어를 내리면 0.05 m/s까지 떨어짐</text>
+
+      <g stroke="#475569" stroke-width="2" fill="none">
+        <polyline points="120,80 120,110 450,110 450,140"/>
+        <polyline points="380,80 380,110"/>
+        <polyline points="640,80 640,110"/>
+      </g>
+      <g fill="#475569">
+        <polygon points="446,136 450,140 454,136"/>
+      </g>
+    </svg>
+    <div class="figcap">그림 2. 무선 패드 조작. START를 한 번 눌러야 조종이 살아납니다.</div>
+  </div>
+</section>
+
+<!-- 5 -->
+<section id="continue">
+  <h2>5. 바탕화면 ‘매핑 이어서’</h2>
+  <p>말씀하신 단축키는 이것입니다.</p>
+  <table>
+    <tr><th>아이콘</th><th>스크립트</th><th>DB를 지우는가</th><th>실제 의미</th></tr>
+    <tr>
+      <td>R2 매핑 이어서</td>
+      <td><code>start_rtabmap_continue.sh</code></td>
+      <td><span class="tag tag-ok">안 지움</span></td>
+      <td>활성 맵 DB에 새 노드를 덧붙임</td>
+    </tr>
+    <tr>
+      <td>R2 매핑 새로</td>
+      <td><code>start_rtabmap_new.sh</code></td>
+      <td><span class="tag tag-no">지움</span></td>
+      <td>새 DB. 이전 맵과 섞이지 않음</td>
+    </tr>
+    <tr>
+      <td>R2 맵 실시간 보기</td>
+      <td><code>view_rtabmap_viz.sh</code></td>
+      <td>—</td>
+      <td>그리는 화면만 연다</td>
+    </tr>
+    <tr>
+      <td>R2 매핑 중지</td>
+      <td><code>stop_robot_stack.sh</code></td>
+      <td>—</td>
+      <td>노드 종료. DB는 디스크에 남음</td>
+    </tr>
+  </table>
+
+  <p>지금 활성 맵:</p>
+  <table>
+    <tr><th>항목</th><th>값</th></tr>
+    <tr><td>표시 이름</td><td>집</td></tr>
+    <tr><td>ID</td><td><code>loc_p37.4386_p127.1378</code> (WiFi/IP 대략 위치)</td></tr>
+    <tr><td>파일</td><td><code>/home/jetson/maps/databases/loc_p37.4386_p127.1378.db</code></td></tr>
+    <tr><td>크기 (2026-06-22 기준)</td><td>약 548 MB</td></tr>
+    <tr><td>바로가기</td><td><code>~/.ros/rtabmap.db</code> → 위 파일로 심볼릭 링크</td></tr>
+    <tr><td>2D 보내기</td><td><code>~/maps/exported/.../nav_map.yaml</code> + <code>.pgm</code> (6월 21일 보내기본, 이후 이어서 그린 내용과 다를 수 있음)</td></tr>
+  </table>
+
+  <div class="fig">
+    <svg viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="이어서 매핑과 새 매핑 분기">
+      <rect width="900" height="280" fill="#f8fafc"/>
+      <rect x="340" y="16" width="220" height="40" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+      <text x="450" y="42" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">바탕화면 아이콘</text>
+
+      <rect x="80" y="110" width="280" height="50" fill="#d1fae5" stroke="#047857" stroke-width="2"/>
+      <text x="220" y="132" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">매핑 이어서</text>
+      <text x="220" y="150" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">delete_db := false</text>
+
+      <rect x="540" y="110" width="280" height="50" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
+      <text x="680" y="132" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">매핑 새로</text>
+      <text x="680" y="150" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">delete_db := true</text>
+
+      <rect x="80" y="210" width="280" height="50" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="220" y="232" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">기존 집.db에 노드 추가</text>
+      <text x="220" y="250" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">증분 SLAM. 가중치 학습 없음</text>
+
+      <rect x="540" y="210" width="280" height="50" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="680" y="232" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">빈 DB로 처음부터</text>
+      <text x="680" y="250" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">이전 집 맵과 분리</text>
+
+      <g stroke="#475569" stroke-width="2" fill="none">
+        <polyline points="450,56 450,80 220,80 220,110"/>
+        <polyline points="450,80 680,80 680,110"/>
+        <polyline points="220,160 220,210"/>
+        <polyline points="680,160 680,210"/>
+      </g>
+      <g fill="#475569">
+        <polygon points="216,106 220,110 224,106"/>
+        <polygon points="676,106 680,110 684,106"/>
+        <polygon points="216,206 220,210 224,206"/>
+        <polygon points="676,206 680,210 684,206"/>
+      </g>
+    </svg>
+    <div class="figcap">그림 3. ‘이어서’와 ‘새로’의 차이. 둘 다 AI 학습이 아닙니다.</div>
+  </div>
+
+  <div class="box box-warn">
+    <strong class="ttl">이어서 그릴 때 주의</strong>
+    시작할 때 로봇이 맵 위 실제 위치와 다른 곳에 있다고 착각하면, 잘못된 복도가 기존 맵 위에 겹칩니다. 가능하면 <strong>이전에 끝내던 지점</strong>에서 다시 켜고, 처음 몇 미터는 이미 그린 복도를 천천히 따라가 루프 클로저가 맞게 붙는지 화면으로 확인하세요. 어긋나면 중지하고 그날 분을 버리거나, 백업 후 ‘새로’로 분리하는 편이 낫습니다.
+  </div>
+</section>
+
+<!-- 6 -->
+<section id="gpu">
+  <h2>6. GPU AI 러닝을 쓰나?</h2>
+  <div class="box box-ok">
+    <strong class="ttl">결론</strong>
+    지금 ROS 2 매핑 파이프라인에는 <strong>GPU로 신경망을 학습하거나, 학습된 네트워크로 지도를 그리는 단계가 없습니다.</strong>
+    “이어서 학습”은 일상 말이지, PyTorch/TensorRT 학습 루프가 아닙니다.
+  </div>
+
+  <table>
+    <tr><th>구분</th><th>매핑 스택 (지금)</th><th>워크스페이스에만 있는 것</th></tr>
+    <tr>
+      <td>알고리즘</td>
+      <td>RTAB-Map — 특징점 + 라이다 ICP + 그래프 최적화</td>
+      <td>MediaPipe, YOLOv5, KCF 트래커, 색 추적</td>
+    </tr>
+    <tr>
+      <td>학습(backprop)</td>
+      <td><span class="tag tag-no">없음</span></td>
+      <td>별도 데모에서만. 매핑 launch에 없음</td>
+    </tr>
+    <tr>
+      <td>추론(inference)</td>
+      <td>고전 OpenCV 특징. GPU 필수 아님</td>
+      <td>손/얼굴/객체 인식 시 GPU를 쓸 수 있음</td>
+    </tr>
+    <tr>
+      <td>Jetson GPU</td>
+      <td>켜져 있음(MAXN_SUPER). 매핑이 그걸 쓰라고 요청하지는 않음</td>
+      <td>카메라 ISP/디스플레이가 일부 GPU를 쓸 수는 있음</td>
+    </tr>
+    <tr>
+      <td>DB가 커지는 이유</td>
+      <td>이미지·스캔·그래프 노드를 SQLite에 저장</td>
+      <td>모델 가중치 업데이트가 아님</td>
+    </tr>
+  </table>
+
+  <p>근거가 되는 launch 설정:</p>
+  <ul>
+    <li><code>Mem/UseGPU</code>, SuperPoint, TensorRT, CUDA 특징 추출 플래그 — <strong>설정되어 있지 않음</strong></li>
+    <li>구독은 RGB-D, 스캔, 오돔뿐</li>
+    <li>순찰용 Nav2도 고전 지역 플래너(DWB). 학습 네트워크 아님</li>
+  </ul>
+
+  <div class="box box-info">
+    <strong class="ttl">그래서 맵 품질은 무엇을 바꾸나</strong>
+    속도·조명·루프(같은 길 다시 지나기)·배터리 전압이지, “더 오래 학습시킬수록 똑똑해지는” 구조가 아닙니다.
+    같은 복도를 천천히 왕복하면 루프 클로저가 그래프를 고쳐 맵이 반듯해질 수는 있습니다. 그건 최적화이지 딥러닝이 아닙니다.
+  </div>
+</section>
+
+<!-- 7 -->
+<section id="check">
+  <h2>7. 입력이 잘 들어오는지 확인하는 법</h2>
+  <p>지도가 보인다는 것은 “뭔가 들어온다”는 뜻입니다. 아래 숫자가 나와야 “잘” 들어옵니다.</p>
+
+  <table>
+    <tr><th>토픽</th><th>의미</th><th>권장 최소 Hz</th><th>정상이면</th></tr>
+    <tr><td><code>/camera/color/image_raw</code></td><td>RGB</td><td>10 (보통 25–30)</td><td>화면이 끊기지 않음</td></tr>
+    <tr><td><code>/camera/depth/image_raw</code></td><td>깊이</td><td>3</td><td>3D가 채워짐</td></tr>
+    <tr><td><code>/rgbd_image</code></td><td>색·깊이 동기</td><td>3</td><td>RTAB-Map이 프레임을 받음</td></tr>
+    <tr><td><code>/scan</code></td><td>라이다</td><td>3 (보통 ~10)</td><td>벽이 선으로 보임</td></tr>
+    <tr><td><code>/odom</code></td><td>EKF 위치</td><td>3</td><td>로봇 점이 따라옴</td></tr>
+    <tr><td><code>/imu/data_raw</code></td><td>IMU 원시</td><td>10</td><td>기울이면 값이 변함</td></tr>
+    <tr><td><code>/joy</code></td><td>패드</td><td>스틱 움직일 때</td><td>버튼·축이 변함</td></tr>
+    <tr><td><code>/cmd_vel</code></td><td>속도 명령</td><td>움직일 때</td><td>linear.x / linear.y</td></tr>
+    <tr><td><code>/voltage</code></td><td>배터리</td><td>~10</td><td>대략 11–12.6 V</td></tr>
+  </table>
+
+  <p>매핑이 켜진 터미널이 아닌 <strong>새 터미널</strong>에서:</p>
+  <pre><code>source /opt/ros/humble/setup.bash
+source ~/yahboomcar_ros2_ws/software/library_ws/install/setup.bash
+source ~/yahboomcar_ros2_ws/yahboomcar_ws/install/setup.bash
+export ROS_DOMAIN_ID=28
+
+ros2 topic hz /scan
+ros2 topic hz /camera/color/image_raw
+ros2 topic hz /camera/depth/image_raw
+ros2 topic hz /odom
+ros2 topic hz /imu/data_raw
+ros2 topic echo /voltage --once
+ros2 topic echo /cmd_vel --once</code></pre>
+
+  <p>한 번에 검사하는 스크립트:</p>
+  <pre><code>bash ~/ROSMASTER-R2-fork/scripts/diagnose_robot.sh --ros
+bash ~/ROSMASTER-R2-fork/scripts/diagnose_camera.sh
+bash ~/ROSMASTER-R2-fork/scripts/diagnose_rtabmap.sh</code></pre>
+
+  <div class="fig">
+    <svg viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="입력 이상 여부 판단">
+      <rect width="900" height="260" fill="#f8fafc"/>
+      <rect x="300" y="16" width="300" height="40" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+      <text x="450" y="42" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">맵 화면이 늘어나는가</text>
+
+      <rect x="40" y="100" width="240" height="50" fill="#d1fae5" stroke="#047857" stroke-width="2"/>
+      <text x="160" y="130" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">예 → 센서는 살아 있음</text>
+
+      <rect x="620" y="100" width="240" height="50" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
+      <text x="740" y="130" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">아니오 → 토픽 Hz 확인</text>
+
+      <rect x="40" y="190" width="240" height="50" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="160" y="220" text-anchor="middle" font-size="12" font-family="Noto Sans KR, sans-serif">품질은 Hz·조명·속도로</text>
+
+      <rect x="620" y="190" width="240" height="50" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="740" y="220" text-anchor="middle" font-size="12" font-family="Noto Sans KR, sans-serif">카메라 LED / /dev/ydlidar</text>
+
+      <g stroke="#475569" stroke-width="2" fill="none">
+        <polyline points="450,56 450,76 160,76 160,100"/>
+        <polyline points="450,76 740,76 740,100"/>
+        <polyline points="160,150 160,190"/>
+        <polyline points="740,150 740,190"/>
+      </g>
+      <g fill="#475569">
+        <polygon points="156,96 160,100 164,96"/>
+        <polygon points="736,96 740,100 744,96"/>
+        <polygon points="156,186 160,190 164,186"/>
+        <polygon points="736,186 740,190 744,186"/>
+      </g>
+    </svg>
+    <div class="figcap">그림 4. 맵이 보이면 입력은 있다. 품질 판단은 주파수와 화면 왜곡으로.</div>
+  </div>
+
+  <h3>조향·구동이 “입력으로 잘 오나” 보는 법</h3>
+  <ul>
+    <li>START를 누른 뒤 스틱을 밀 때 <code>/cmd_vel</code>의 <code>linear.x</code>(전후), <code>linear.y</code>(조향)가 변하면 패드→ROS는 정상입니다.</li>
+    <li>바퀴가 도는데 <code>/odom</code>이 안 움직이면 오도메트리 쪽 문제입니다.</li>
+    <li>앞바퀴가 안 꺾이면 서보·전원·<code>linear.y</code>를 의심합니다. 맵 알고리즘 문제가 아닙니다.</li>
+  </ul>
+</section>
+
+<!-- 8 -->
+<section id="imu">
+  <h2>8. IMU와 센서 보정을 하나?</h2>
+  <p>짧게: <strong>실시간으로 돌리는 것은 ‘융합’이지 ‘캘리브레이션 루틴’이 아닙니다.</strong></p>
+  <table>
+    <tr><th>센서</th><th>지금 하는 일</th><th>자동 보정?</th><th>어디에 있나</th></tr>
+    <tr>
+      <td>IMU</td>
+      <td>원시값 발행 → Madgwick(<code>use_mag: false</code>) → EKF가 <code>/odom_raw</code>와 합침</td>
+      <td><span class="tag tag-no">아니오</span></td>
+      <td><code>imu_filter_param.yaml</code>, <code>ekf_x1_x3.yaml</code></td>
+    </tr>
+    <tr>
+      <td>지자계</td>
+      <td><code>/imu/mag</code>는 발행하지만 필터가 사용 안 함</td>
+      <td><span class="tag tag-no">아니오</span></td>
+      <td>실내 자장 왜곡 때문에 끈 설정</td>
+    </tr>
+    <tr>
+      <td>카메라 내부변수</td>
+      <td>Astra 드라이버가 <code>camera_info</code>에 실어 줌</td>
+      <td>공장값. 체스보드 재보정 없음</td>
+      <td><code>astro_pro_plus.launch.xml</code></td>
+    </tr>
+    <tr>
+      <td>라이다 위치</td>
+      <td>고정 TF: 앞으로 4.35 cm, 위로 11 cm</td>
+      <td>수동 상수</td>
+      <td><code>laser_bringup_launch.py</code></td>
+    </tr>
+    <tr>
+      <td>바퀴 스케일</td>
+      <td>bringup에서 <code>linear_scale_x/y = 1.0</code></td>
+      <td>스크립트는 있음, 자동 실행 없음</td>
+      <td><code>calibrate_linear_R2.py</code>, <code>calibrate_angular_R2.py</code></td>
+    </tr>
+    <tr>
+      <td>RTAB-Map ↔ IMU</td>
+      <td>직접 연결 없음. 중력 제약 0</td>
+      <td>—</td>
+      <td><code>Optimizer/GravitySigma: 0</code></td>
+    </tr>
+  </table>
+
+  <div class="box box-warn">
+    <strong class="ttl">보정하면 좋아지는 경우</strong>
+    직진했는데 맵이 부채처럼 벌어지거나, 제자리 회전이 각도보다 크면 바퀴 스케일 보정이 도움이 됩니다.
+    IMU 자체 8자 보정·자침 보정은 현재 매핑 절차에 들어 있지 않습니다.
+  </div>
+</section>
+
+<!-- 9 -->
+<section id="git">
+  <h2>9. Git은 어디에 있나</h2>
+  <table>
+    <tr><th>경로</th><th>원격</th><th>역할</th></tr>
+    <tr>
+      <td><code>/home/jetson/ROSMASTER-R2-fork</code></td>
+      <td><a href="https://github.com/abraxas4/ROSMASTER-R2-fork">github.com/abraxas4/ROSMASTER-R2-fork</a></td>
+      <td><strong>이 프로젝트의 메인 git.</strong> 스크립트, launch, 문서, 바탕화면 아이콘</td>
+    </tr>
+    <tr>
+      <td><code>/home/jetson/yahboomcar_ros2_ws</code></td>
+      <td>없음 (폴더 자체는 비-git)</td>
+      <td>지금 매핑이 <strong>실제로 실행하는</strong> Humble 워크스페이스</td>
+    </tr>
+    <tr>
+      <td><code>yahboomcar_ros2_ws/software/library_ws/src/*</code></td>
+      <td>각 패키지 안의 업스트림 git</td>
+      <td>ydlidar, robot_localization 등 벤더 소스</td>
+    </tr>
+  </table>
+
+  <pre><code>cd /home/jetson/ROSMASTER-R2-fork
+git status
+git log -5 --oneline
+git remote -v
+# origin  https://github.com/abraxas4/ROSMASTER-R2-fork.git</code></pre>
+
+  <p>로버에서 코드 받기:</p>
+  <pre><code>cd /home/jetson/ROSMASTER-R2-fork
+bash scripts/update_code.sh</code></pre>
+
+  <p>문서도 여기 있습니다.</p>
+  <ul>
+    <li>이 파일: <code>/home/jetson/ROSMASTER-R2-fork/docs/R2_매핑_센서_배터리.html</code></li>
+    <li>이전 일지: <code>/home/jetson/ROSMASTER-R2-fork/docs/R2_프로젝트_일지.html</code></li>
+  </ul>
+</section>
+
+<!-- 10 -->
+<section id="battery">
+  <h2>10. 전원이 금방 닳고 차가 느려지는 이유</h2>
+  <p>두 현상을 한 원인으로 보면 안 됩니다.</p>
+  <table>
+    <tr><th>현상</th><th>원인</th><th>맵 품질과의 관계</th></tr>
+    <tr>
+      <td>처음부터 느리다</td>
+      <td>조이스틱 한도 <code>xspeed_limit = 0.2 m/s</code>. 기어 내리면 0.05 m/s. 데드존 0.45라 스틱을 깊게 밀어야 함</td>
+      <td>느린 것은 RTAB-Map에 <strong>이롭다</strong> (흔들림·블러 감소)</td>
+    </tr>
+    <tr>
+      <td>돌다 보면 더 느려진다</td>
+      <td>배터리 전압이 떨어지면 같은 PWM에서도 모터 토크가 줄어듦. 보드가 저전압 보호에 들어가면 더 굼떠짐</td>
+      <td>오돔이 들쭉날쭉해져 <strong>맵이 나빠짐</strong></td>
+    </tr>
+    <tr>
+      <td>10평 한 바퀴에 끝난다</td>
+      <td>Jetson이 <code>MAXN_SUPER</code>(최고 전력) + 화면 + 라이다 + 카메라 + 모터. 배터리 용량·노후·충전 부족이 겹치면 수분~수십 분이면 방전</td>
+      <td>한 번에 집을 다 못 그림 → ‘이어서’로 쪼개야 함</td>
+    </tr>
+  </table>
+
+  <div class="fig">
+    <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="배터리와 속도">
+      <rect width="900" height="300" fill="#f8fafc"/>
+      <rect x="40" y="20" width="200" height="44" fill="#d1fae5" stroke="#047857" stroke-width="2"/>
+      <text x="140" y="47" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">만충 약 12.4–12.6 V</text>
+
+      <rect x="350" y="20" width="200" height="44" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+      <text x="450" y="47" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">주의 약 11.4–11.8 V</text>
+
+      <rect x="660" y="20" width="200" height="44" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
+      <text x="760" y="47" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">위험 11.1 V 이하</text>
+
+      <rect x="40" y="120" width="200" height="50" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="140" y="150" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">속도 설정값 유지</text>
+
+      <rect x="350" y="120" width="200" height="50" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="450" y="142" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">같은 스틱인데</text>
+      <text x="450" y="160" text-anchor="middle" font-size="12" fill="#64748b" font-family="Noto Sans KR, sans-serif">점점 느려짐</text>
+
+      <rect x="660" y="120" width="200" height="50" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="760" y="142" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">보드 0.0 / -1</text>
+      <text x="760" y="160" text-anchor="middle" font-size="12" fill="#64748b" font-family="Noto Sans KR, sans-serif">비프, 리셋 필요</text>
+
+      <rect x="40" y="220" width="820" height="50" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+      <text x="450" y="250" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">매핑 중 새 터미널에서  ros2 topic echo /voltage --once</text>
+
+      <g stroke="#475569" stroke-width="2" fill="none">
+        <polyline points="240,42 350,42"/>
+        <polyline points="550,42 660,42"/>
+        <polyline points="140,64 140,120"/>
+        <polyline points="450,64 450,120"/>
+        <polyline points="760,64 760,120"/>
+        <polyline points="140,170 140,196 450,196 450,220"/>
+      </g>
+      <g fill="#475569">
+        <polygon points="346,38 350,42 346,46"/>
+        <polygon points="656,38 660,42 656,46"/>
+        <polygon points="136,116 140,120 144,116"/>
+        <polygon points="446,116 450,120 454,116"/>
+        <polygon points="756,116 760,120 764,116"/>
+        <polygon points="446,216 450,220 454,216"/>
+      </g>
+    </svg>
+    <div class="figcap">그림 5. 3셀(약 11.1 V 공칭) 리튬 기준. 정확한 공칭은 배터리 라벨을 보세요.</div>
+  </div>
+
+  <h3>문서 작성 시각에 확인한 것</h3>
+  <ul>
+    <li>ROS 매핑 노드는 당시 꺼져 있었습니다. OLED 프로세스만 동작.</li>
+    <li>모터보드에 직접 물었을 때 <code>battery=0.0</code>, <code>version=-1</code>. 차체 스위치가 꺼졌거나, OLED가 시리얼을 잡고 있거나, 보드가 응답하지 않는 상태입니다. <strong>지금 용량이 0이라는 뜻으로 단정하지 마세요.</strong> 매핑을 켠 뒤 <code>/voltage</code>를 보세요.</li>
+    <li>Jetson 전력 모드: <code>NV Power Mode: MAXN_SUPER</code> — 성능 최대, 전류도 최대.</li>
+  </ul>
+
+  <h3>전원을 늘리려면 (우선순위)</h3>
+  <ol>
+    <li>출발 전 만충. 매핑 중 <code>/voltage</code>가 11.4 V 아래로 가면 충전으로 돌아가기.</li>
+    <li>화면 밝기 낮추기. 매핑이 아닌 시간에는 <code>R2 매핑 중지</code>.</li>
+    <li>Jetson을 최고 모드로 두지 않기. 예: <code>sudo nvpmodel -m 2</code> 후 가능한 15 W/10 W 모드 확인. (모델마다 번호가 다름. <code>nvpmodel -q --verbose</code>)</li>
+    <li>한 번에 집을 다 그리지 말고, 방 하나 → 중지 → 충전 → <strong>이어서</strong>.</li>
+    <li>배터리 라벨 용량(예: 12 V 3 Ah vs 5 Ah)과 연식을 확인. 10평 한 바퀴에 끝나면 용량 부족 또는 셀 노후 가능성이 큼.</li>
+  </ol>
+
+  <div class="box box-info">
+    <strong class="ttl">느리게 둔 것이 맵을 망쳤을까?</strong>
+    아닙니다. 0.2 m/s 전후는 실내 RTAB-Map에 흔한 속도입니다. 품질이 나쁘다면 원인 후보는 오히려
+    방전 직전 속도 출렁임, 시작 위치 어긋난 ‘이어서’, 조명, 유리·거울, 같은 길 미방문(루프 없음)입니다.
+    더 늦출 필요는 없고, <strong>전압이 버틸 때 일정한 느린 속도</strong>가 정답입니다.
+  </div>
+</section>
+
+<!-- 11 -->
+<section id="howto">
+  <h2>11. 지금 당장 할 일</h2>
+  <div class="fig">
+    <svg viewBox="0 0 900 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="운영 순서">
+      <rect width="900" height="420" fill="#f8fafc"/>
+      <rect x="300" y="16" width="300" height="40" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+      <text x="450" y="42" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">1. 만충 확인 후 차체 전원 ON</text>
+
+      <rect x="300" y="90" width="300" height="40" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="450" y="116" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">2. R2 매핑 이어서 실행</text>
+
+      <rect x="300" y="164" width="300" height="40" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="450" y="190" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">3. R2 맵 실시간 보기</text>
+
+      <rect x="300" y="238" width="300" height="50" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="450" y="260" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">4. 다른 터미널에서 Hz·전압</text>
+      <text x="450" y="278" text-anchor="middle" font-size="11" fill="#64748b" font-family="Noto Sans KR, sans-serif">scan / camera / odom / voltage</text>
+
+      <rect x="40" y="340" width="300" height="50" fill="#d1fae5" stroke="#047857" stroke-width="2"/>
+      <text x="190" y="370" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">숫자 정상 → 천천히 왕복</text>
+
+      <rect x="560" y="340" width="300" height="50" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
+      <text x="710" y="370" text-anchor="middle" font-size="13" font-family="Noto Sans KR, sans-serif">전압 하락 → 중지 후 충전</text>
+
+      <g stroke="#475569" stroke-width="2" fill="none">
+        <polyline points="450,56 450,90"/>
+        <polyline points="450,130 450,164"/>
+        <polyline points="450,204 450,238"/>
+        <polyline points="450,288 450,314 190,314 190,340"/>
+        <polyline points="450,314 710,314 710,340"/>
+      </g>
+      <g fill="#475569">
+        <polygon points="446,86 450,90 454,86"/>
+        <polygon points="446,160 450,164 454,160"/>
+        <polygon points="446,234 450,238 454,234"/>
+        <polygon points="186,336 190,340 194,336"/>
+        <polygon points="706,336 710,340 714,336"/>
+      </g>
+    </svg>
+    <div class="figcap">그림 6. 다음 매핑 세션 순서. 곡선 없이 위에서 아래로만 진행합니다.</div>
+  </div>
+
+  <p>관련 파일:</p>
+  <ul>
+    <li>매핑 코어: <code>~/ROSMASTER-R2-fork/scripts/rtabmap_mapping_core.sh</code></li>
+    <li>Launch: <code>~/ROSMASTER-R2-fork/scripts/launch/rtabmap_managed.launch.py</code></li>
+    <li>조이스틱 속도: <code>~/yahboomcar_ros2_ws/yahboomcar_ws/src/yahboomcar_ctrl/yahboomcar_ctrl/yahboom_joy_R2.py</code></li>
+    <li>구동·전압·IMU: <code>.../yahboomcar_bringup/yahboomcar_bringup/Ackman_driver_R2.py</code></li>
+    <li>맵 목록: <code>~/maps/registry.json</code></li>
+  </ul>
+</section>
+
+<footer>
+  <p>이 문서는 로봇에 설치된 launch·드라이버·바탕화면 단축키를 읽고 2026-08-16에 작성했습니다.</p>
+  <p>경로: <code>/home/jetson/ROSMASTER-R2-fork/docs/R2_매핑_센서_배터리.html</code></p>
+</footer>
+
+</div>
+</body>
+</html>
