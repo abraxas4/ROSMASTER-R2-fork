@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartographer 알고리즘 — R2 집 맵 2026-09-06</title>
+<style>
+  body { font-family:"NanumGothic","Noto Sans CJK KR","Noto Sans KR",sans-serif; margin:0; background:#f4f6f8; color:#1a1d26; line-height:1.75; }
+  header { background:#0f172a; color:#fff; padding:1.7rem 1.3rem; }
+  header h1 { margin:0 0 .35rem; font-size:1.4rem; }
+  header p { margin:0; opacity:.92; }
+  .wrap { max-width:980px; margin:0 auto; padding:1.2rem 1.15rem 3rem; }
+  nav.toc { background:#fff; border:1px solid #d8dee6; padding:1rem 1.2rem; margin-bottom:1rem; }
+  nav.toc ol { margin:.3rem 0 0; padding-left:1.3rem; }
+  nav.toc a { color:#1d4ed8; text-decoration:none; }
+  section { background:#fff; border:1px solid #d8dee6; padding:1.15rem 1.3rem; margin:0 0 1rem; }
+  h2 { margin:0 0 .55rem; font-size:1.15rem; border-bottom:3px solid #dbeafe; padding-bottom:.3rem; }
+  h3 { margin:1rem 0 .35rem; font-size:1.02rem; }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; }
+  th,td { border:1px solid #d8dee6; padding:.45rem .55rem; text-align:left; vertical-align:top; }
+  th { background:#eef2f7; }
+  .thesis { background:#eff6ff; border-left:4px solid #2563eb; padding:.85rem 1.1rem; margin:0 0 1rem; font-weight:700; }
+  .thesis span { display:block; margin-top:.4rem; font-weight:500; font-size:.92rem; color:#334155; }
+  .note { background:#f8fafc; border:1px solid #e2e8f0; padding:.75rem 1rem; margin:.7rem 0; }
+  .warn { background:#fff7ed; border-left:4px solid #ea580c; padding:.75rem 1rem; margin:.7rem 0; }
+  .ok { background:#ecfdf5; border-left:4px solid #059669; padding:.75rem 1rem; margin:.7rem 0; }
+  .fig { border:1px solid #e2e8f0; background:#f8fafc; padding:.5rem; margin:.7rem 0; }
+  .fig img { max-width:100%; height:auto; display:block; }
+  .cap { font-size:.84rem; color:#64748b; margin:.35rem 0 .2rem; }
+  code { background:#eef2f6; padding:.06em .3em; }
+  footer { font-size:.82rem; color:#64748b; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap" style="padding:0">
+    <h1>Cartographer가 이 차에서 맵을 그리는 방법</h1>
+    <p>2026-09-06 · Yahboom R2 · 라이다만 · 카메라 없음 · Google Cartographer 2D</p>
+  </div>
+</header>
+<div class="wrap">
+
+<nav class="toc">
+  <ol>
+    <li><a href="#core">핵심</a></li>
+    <li><a href="#why">왜 RTAB와 다른가</a></li>
+    <li><a href="#pipe">한 장이 들어오는 순서</a></li>
+    <li><a href="#local">로컬 맞춤 (옆장을 서브맵에)</a></li>
+    <li><a href="#submap">서브맵</a></li>
+    <li><a href="#loop">루프 (같은 장소)</a></li>
+    <li><a href="#grid">칸을 그리는 방식</a></li>
+    <li><a href="#stand">서 있을 때</a></li>
+    <li><a href="#run">이번 집 주행</a></li>
+    <li><a href="#lua">이 차에 넣은 설정</a></li>
+    <li><a href="#files">파일과 켜는 법</a></li>
+    <li><a href="#patrol">혼자 패트롤까지 남은 것</a></li>
+  </ol>
+</nav>
+
+<section id="core">
+  <h2>1. 핵심</h2>
+  <p class="thesis">
+    Cartographer는 라이다 장을 지금 맵에 돌려 붙이고, 조금 전까지의 지도를 덩어리(서브맵)로 봉인한 뒤, 같은 벽에 돌아오면 그 덩어리들을 한꺼번에 당깁니다.
+    <span>옆장끼리만 잇는 것이 아닙니다. 출발 벽을 다시 알아채는 루프가 기본입니다. 짧은 집 한 바퀴는 이 소프트웨어가 원래 잘 하는 거리입니다.</span>
+  </p>
+  <p>센서는 그대로입니다. 라이다, 조이스틱, 차. 카메라 없음. 바뀐 것은 맵을 그리는 프로그램 하나입니다.</p>
+</section>
+
+<section id="why">
+  <h2>2. 왜 RTAB-Map과 다른가</h2>
+  <p>RTAB-Map은 원래 카메라로 “여기 다시 왔다”를 찾는 프로그램입니다. 카메라를 끄고 라이다만 쓰면 그 기능이 꺼집니다. 칸은 찍고 안 지웁니다. 그래서 짧게 돌아도 부채가 남았습니다.</p>
+  <div class="fig">
+    <img src="img/20260906_005000_carto_서브맵루프.png" alt="칸 쌓기 vs 서브맵 루프">
+    <p class="cap">왼쪽=틀린 줄을 쌓기만 함. 오른쪽=덩어리를 나중에 다시 붙여 칸을 다시 그림.</p>
+  </div>
+  <table>
+    <tr><th></th><th>지금까지 RTAB-Map</th><th>Cartographer 2D</th></tr>
+    <tr><td>원래 목적</td><td>카메라+깊이로 장소 인식</td><td>2D 라이다로 실내 맵</td></tr>
+    <tr><td>옆장 맞춤</td><td>우리가 따로 넣음 (scan_to_map)</td><td>프로그램 안에 있음</td></tr>
+    <tr><td>같은 장소</td><td>카메라 없으면 약함</td><td>옛 서브맵과 스캔을 비교</td></tr>
+    <tr><td>칸</td><td>찍고 남김</td><td>확률. 루프 후 다시 그림</td></tr>
+    <tr><td>바퀴 오돔</td><td>EKF가 자세의 기준</td><td>안 씀. 라이다가 자세를 맡음</td></tr>
+  </table>
+</section>
+
+<section id="pipe">
+  <h2>3. 한 장이 들어오는 순서</h2>
+  <div class="fig">
+    <img src="img/20260906_005000_carto_순서.png" alt="스캔부터 /map까지 다섯 단계">
+  </div>
+  <ol>
+    <li><strong>장.</strong> 라이다 <code>/scan</code> 약 10Hz. 이 차에서는 0.20~8.0m만 씁니다.</li>
+    <li><strong>로컬 맞춤.</strong> 지금 그리고 있는 서브맵에 이 장을 돌리고 밀어 붙입니다. 앞에서 말한 옆장 맞춤과 같지만, 기준이 “바로 전 한 장”이 아니라 “지금 서브맵의 벽”입니다.</li>
+    <li><strong>서브맵.</strong> 약 40장이 모이면 그 덩어리를 봉인합니다. 봉인된 덩어리의 안은 더 안 비틉니다.</li>
+    <li><strong>루프.</strong> 새 장이 예전에 봉인한 서브맵과 같은 벽이면, 그 둘을 잇는 제약을 넣고 경로 전체를 다시 풉니다. 출발 근처로 돌아오면 여기서 각도가 당겨집니다.</li>
+    <li><strong>/map.</strong> 고친 자세로 확률 격자를 다시 그립니다. 토픽 이름은 그대로 <code>/map</code>입니다.</li>
+  </ol>
+</section>
+
+<section id="local">
+  <h2>4. 로컬 맞춤</h2>
+  <p>두 단계입니다.</p>
+  <ol>
+    <li><strong>대략 찾기.</strong> 지금 추정 자세 근처에서 회전 ±20°, 위치 ±15cm를 검색합니다 (<code>use_online_correlative_scan_matching</code>).</li>
+    <li><strong>세밀하게.</strong> Ceres로 벽이 겹치게 다듬습니다. 각도에 가중을 더 줍니다 (rotation_weight 40, translation_weight 10). 이 차는 각도가 부채의 주원인이라 그렇게 넣었습니다.</li>
+  </ol>
+  <p>기준은 이미 그린 <strong>서브맵</strong>입니다. 옆장만 맞추면 둘 다 같이 돌아도 점수가 높았습니다. 서브맵에 맞추면 “이미 그린 벽”이 기준이라, 같이 도는 것을 막습니다. 앞에서 말한 “이미 그린 벽에 붙이기”가 여기 들어 있습니다.</p>
+</section>
+
+<section id="submap">
+  <h2>5. 서브맵</h2>
+  <p>지도를 한 장에 계속 칠하지 않습니다. 짧은 구간을 하나의 덩어리로 만듭니다. 이 설정에서는 스캔 약 40장마다 새 서브맵입니다. 집 한 바퀴면 여러 덩어리가 생깁니다. 이번 주행은 6개였습니다.</p>
+  <p>덩어리 안은 로컬 맞춤으로 비교적 곧습니다. 덩어리와 덩어리 사이 각도가 틀어질 수 있습니다. 그 틀어짐을 고치는 것이 다음 단계 루프입니다.</p>
+</section>
+
+<section id="loop">
+  <h2>6. 루프 (같은 장소)</h2>
+  <p>새 노드가 생기면, 근처(여기선 12m 안)의 옛 서브맵과 비교합니다. 겹침 점수가 0.55 이상이면 제약으로 넣습니다. 노드 20개마다 경로 전체를 다시 풉니다.</p>
+  <p>검색 창은 위치 5m, 각도 ±30°입니다. 집 안에서 “출발 벽이 다시 보인다” 정도는 이 창에 들어갑니다.</p>
+  <p>제약이 들어가면 그동안의 자세가 한꺼번에 조금 움직입니다. 그다음 칸을 다시 그립니다. 옆장만 이을 때 쌓이던 각도가 여기서 빠집니다.</p>
+  <div class="ok">이번 주행: 출발 노드(0번)가 나중 서브맵 3과 맞춰짐. 차이 약 4cm, 회전 약 1°, 점수 69%.</div>
+</section>
+
+<section id="grid">
+  <h2>7. 칸을 그리는 방식</h2>
+  <p>칸은 “벽이다/아니다”를 한 번 찍고 끝이 아닙니다. 각 칸에 확률을 둡니다. 레이저가 그 칸에서 맞으면 벽 쪽으로, 통과하면 빈칸 쪽으로 갑니다. 루프가 자세를 고치면 격자를 다시 만듭니다.</p>
+  <p>해상도 5cm. 노드 <code>cartographer_occupancy_grid_node</code>가 0.5초마다 <code>/map</code>을 발행합니다.</p>
+  <div class="note">RTAB 점유맵은 예전에 찍은 검정 칸을 안 지웠습니다. Cartographer는 루프 뒤에 칸을 다시 그립니다. 그래서 같은 집을 돌아도 그림이 다릅니다.</div>
+</section>
+
+<section id="stand">
+  <h2>8. 서 있을 때</h2>
+  <p>라이다는 서 있어도 같은 벽을 봅니다. 문제는 자세가 노이즈로 밀리면 같은 벽이 옆칸에 찍히는 것이었습니다.</p>
+  <p>Cartographer는 움직인 거리가 5cm 미만이고 각도가 1° 미만이면 노드를 안 넣습니다. 시간은 최대 5초. 이번 주행 로그에 “Motion filter reduced the number of nodes to 43% → 23%”가 나왔습니다. 서 있는 구간의 스캔을 버린 것입니다. 칠을 끄는 것이 아니라, <strong>같은 자리 노드를 안 늘리는 것</strong>입니다.</p>
+</section>
+
+<section id="run">
+  <h2>9. 이번 집 주행 (2026-09-06 00:45)</h2>
+  <div class="fig">
+    <img src="img/20260906_005000_carto_이번주행.png" alt="서브맵 6, 제약, 4cm 1도">
+  </div>
+  <div class="fig">
+    <img src="img/20260906_004735_Cartographer결과맵.png" alt="Cartographer 결과 점유맵">
+    <p class="cap">점유 4055칸. 벽이 한 줄에 가깝다. RTAB 때처럼 전체가 검게 부채로 뭉개지지 않음.</p>
+  </div>
+  <table>
+    <tr><th>항목</th><th>값</th></tr>
+    <tr><td>라이다</td><td>10.1Hz, 정상</td></tr>
+    <tr><td>서브맵</td><td>6개 (0~5)</td></tr>
+    <tr><td>추가된 루프 제약</td><td>배치마다 9~31개</td></tr>
+    <tr><td>출발 노드 ↔ 서브맵 3</td><td>이동 0.04m, 회전 0.020rad (약 1°), 점수 68.6%</td></tr>
+    <tr><td>저장</td><td><code>~/maps/cartographer/20260906_004700.pbstream</code></td></tr>
+    <tr><td>그림</td><td><code>docs/img/20260906_004735_Cartographer결과맵.png</code></td></tr>
+  </table>
+  <p>아직 두꺼운 벽 구간은 있습니다. 한 바퀴를 더 돌며 같은 벽을 반복하면 루프가 더 넣고, 줄이 더 얇아지는 것이 이 알고리즘의 정상적인 다음 단계입니다.</p>
+</section>
+
+<section id="lua">
+  <h2>10. 이 차에 넣은 설정</h2>
+  <p>파일 <code>scripts/params/r2_cartographer.lua</code>. 바퀴 오돔·IMU는 끄고 라이다만 씁니다. 조향 오돔이 각도를 틀리던 길을 피한 것입니다.</p>
+  <table>
+    <tr><th>항목</th><th>값</th><th>이유</th></tr>
+    <tr><td>tracking / published</td><td>base_footprint</td><td>차 바닥 기준. 라이다 TF는 base_link→laser</td></tr>
+    <tr><td>use_odometry</td><td>false</td><td>Ackermann 오돔과 싸우지 않음</td></tr>
+    <tr><td>use_imu_data</td><td>false</td><td>보드 IMU가 2D 자세에 노이즈를 넣던 경험</td></tr>
+    <tr><td>min / max range</td><td>0.20 / 8.0 m</td><td>이 라이다·실내</td></tr>
+    <tr><td>실시간 검색 창</td><td>±15cm, ±20°</td><td>로컬 드리프트 흡수</td></tr>
+    <tr><td>서브맵 크기</td><td>40 스캔</td><td>짧은 집 루프가 여러 덩어리를 만나게</td></tr>
+    <tr><td>최적화 주기</td><td>노드 20개마다</td><td>기본 90은 한 바퀴에 너무 늦음</td></tr>
+    <tr><td>루프 최소 점수</td><td>0.55</td><td>실내 벽. 너무 높으면 출발 벽을 놓침</td></tr>
+    <tr><td>루프 검색</td><td>5m, ±30°</td><td>집 크기</td></tr>
+    <tr><td>모션 필터</td><td>5cm / 1° / 5s</td><td>서 있으면 노드를 안 늘림</td></tr>
+    <tr><td>격자</td><td>5cm</td><td>점유맵 해상도</td></tr>
+  </table>
+</section>
+
+<section id="files">
+  <h2>11. 파일과 켜는 법</h2>
+  <table>
+    <tr><th>파일</th><th>역할</th></tr>
+    <tr><td><code>scripts/params/r2_cartographer.lua</code></td><td>위 설정</td></tr>
+    <tr><td><code>scripts/launch/cartographer_managed.launch.py</code></td><td>라이다+조이스틱(오돔 없음)+Cartographer+점유격자</td></tr>
+    <tr><td><code>scripts/start_cartographer.sh</code></td><td>켜기</td></tr>
+    <tr><td><code>scripts/stop_robot_stack.sh</code></td><td>끄기 (cartographer_node 포함)</td></tr>
+    <tr><td><code>scripts/mapping_speed_guard.py</code></td><td>조향 한도 0.045, 속도 0.35</td></tr>
+  </table>
+  <div class="note">
+    켜기: <code>bash ~/ROSMASTER-R2-fork/scripts/start_cartographer.sh</code><br>
+    조이스틱: 2번(MODE) 한 번, 왼쪽 스틱 절반 이상.<br>
+    끄기: <code>bash ~/ROSMASTER-R2-fork/scripts/stop_robot_stack.sh</code><br>
+    상태 저장은 켜 있는 동안 <code>/write_state</code> 서비스. 이번 파일은 <code>~/maps/cartographer/*.pbstream</code>.
+  </div>
+  <p>RTAB-Map, scan_to_map, EKF 오돔 TF는 이 매핑에 안 켭니다.</p>
+</section>
+
+<section id="patrol">
+  <h2>12. 순찰 연결</h2>
+  <p>맵은 Nav2가 읽는 격자(<code>pgm</code>/<code>yaml</code>)로 저장합니다. 위치 찾기는 AMCL입니다. 카메라는 없습니다.</p>
+  <table>
+    <tr><th>단계</th><th>내용</th><th>지금</th></tr>
+    <tr><td>1. 맵</td><td>Cartographer 격자</td><td><code>~/maps/cartographer/20260906_004700.yaml</code></td></tr>
+    <tr><td>2. 위치 찾기</td><td>저장된 맵 위에서 지금 라이다가 어디인지</td><td>AMCL. 출발은 매핑을 시작한 자리</td></tr>
+    <tr><td>3. 길 계획·따라가기</td><td>Nav2 TEB (장애물, 속도, 조향)</td><td><code>start_patrol.sh</code></td></tr>
+    <tr><td>4. 순찰 경로</td><td>지오펜스 안 빈칸 웨이포인트</td><td><code>geofence_patrol.py</code></td></tr>
+  </table>
+  <div class="ok">
+    데스크톱 “R2 순찰 시작”. 켜기: <code>bash ~/ROSMASTER-R2-fork/scripts/start_patrol.sh</code>.
+    매핑 중지는 맵을 먼저 저장합니다.
+  </div>
+  <p>순찰을 켤 때 차는 매핑을 시작했던 자리에 두는 것이 맞습니다. AMCL 초기 자세는 맵 원점입니다.</p>
+</section>
+
+<footer>
+  <p>사실만 적음. 2026-09-06. 측정은 로그와 <code>/map</code> 스냅샷. Google Cartographer 2.0 (ROS 2 Humble).</p>
+</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartographer로 바뀌는 것 2026-09-06</title>
+<style>
+  body { font-family:"NanumGothic","Noto Sans CJK KR",sans-serif; margin:0; background:#f4f6f8; color:#1a1d26; line-height:1.75; }
+  header { background:#0f172a; color:#fff; padding:1.5rem 1.3rem; }
+  header h1 { margin:0 0 .35rem; font-size:1.35rem; }
+  .wrap { max-width:900px; margin:0 auto; padding:1.2rem 1.15rem 3rem; }
+  section { background:#fff; border:1px solid #d8dee6; padding:1.1rem 1.25rem; margin:0 0 1rem; }
+  h2 { margin:0 0 .5rem; font-size:1.1rem; }
+  table { width:100%; border-collapse:collapse; font-size:.92rem; }
+  th,td { border:1px solid #d8dee6; padding:.45rem .55rem; text-align:left; vertical-align:top; }
+  th { background:#eef2f7; }
+  .ok { background:#ecfdf5; border-left:4px solid #059669; padding:.7rem 1rem; }
+  .note { background:#f8fafc; border:1px solid #e2e8f0; padding:.7rem 1rem; }
+  code { background:#eef2f6; padding:.06em .3em; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap" style="padding:0">
+    <h1>Cartographer로 바뀌는 것</h1>
+    <p style="margin:0;opacity:.9">2026-09-06 · 라이다·조이스틱·차는 그대로</p>
+  </div>
+</header>
+<div class="wrap">
+<section>
+  <h2>그대로인 것</h2>
+  <p>차, 조이스틱(2번/MODE, 왼쪽 스틱), 라이다, 속도 한도. 카메라 없음. 집 맵 파일은 이미 지운 상태.</p>
+</section>
+<section>
+  <h2>바뀌는 것</h2>
+  <table>
+    <tr><th></th><th>지금까지 (RTAB-Map)</th><th>이제 (Cartographer)</th></tr>
+    <tr><td>맵을 그리는 프로그램</td><td>RTAB-Map + scan_to_map</td><td>Cartographer 2D 하나</td></tr>
+    <tr><td>옆장 맞춤</td><td>우리가 짠 검색</td><td>프로그램 안 실시간 스캔 맞춤</td></tr>
+    <tr><td>같은 장소 루프</td><td>꺼져 있음 / 약함</td><td>서브맵을 나중에 다시 붙여 각도를 당김</td></tr>
+    <tr><td>칸</td><td>찍고 안 지움 (부채)</td><td>확률 격자. 루프 후 다시 그림</td></tr>
+    <tr><td>바퀴 오돔 TF</td><td>EKF가 odom 발행</td><td>안 씀. Cartographer가 자세를 맡음</td></tr>
+    <tr><td>켜는 명령</td><td><code>rtabmap_managed.launch.py</code></td><td><code>scripts/start_cartographer.sh</code></td></tr>
+    <tr><td>보이는 맵</td><td><code>/map</code> (scan_to_map)</td><td><code>/map</code> (Cartographer)</td></tr>
+  </table>
+</section>
+<section>
+  <p class="ok">짧은 집 한 바퀴에서 출발 벽에 돌아오면, 예전 서브맵과 맞춰 경로를 한 번에 고치는 것이 목적입니다. 그게 RTAB에서 안 되던 부분입니다.</p>
+</section>
+<section>
+  <h2>켜기 / 끄기</h2>
+  <div class="note">
+    매핑: <code>bash ~/ROSMASTER-R2-fork/scripts/start_cartographer.sh</code><br>
+    끄기(맵 저장 후): <code>bash ~/ROSMASTER-R2-fork/scripts/stop_robot_stack.sh</code><br>
+    순찰: <code>bash ~/ROSMASTER-R2-fork/scripts/start_patrol.sh</code><br>
+    순찰은 카메라 없이, 이 Cartographer 격자 위 AMCL+Nav2.
+  </div>
+</section>
+</div>
+</body>
+</html>

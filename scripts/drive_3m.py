@@ -13,10 +13,11 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
 
 # Lidar-only stop. No map required.
-FRONT_STOP_M = 0.40
-REAR_STOP_M = 0.40
-CONE_DEG = 25.0
-IGNORE_CLOSER_THAN = 0.12
+FRONT_STOP_M = 0.55
+REAR_STOP_M = 0.55
+CONE_DEG = 20.0
+# 2D lidar has no height. A ~1 cm mat shows up as 0.3-0.5 m hits; skip those.
+IGNORE_CLOSER_THAN = 0.50
 
 
 def yaw_of(q):

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R2 오돔·조향 보정 목록 — 2026-08-18 00:37:02</title>
+<style>
+  body { font-family:"Noto Sans CJK KR","NanumGothic","Noto Sans KR",sans-serif; margin:0; background:#f4f6f8; color:#1a1d26; line-height:1.75; }
+  header { background:#0f172a; color:#fff; padding:1.7rem 1.3rem; }
+  header h1 { margin:0 0 .35rem; font-size:1.4rem; }
+  header p { margin:0; opacity:.92; }
+  .wrap { max-width:980px; margin:0 auto; padding:1.2rem 1.15rem 3rem; }
+  nav.toc { background:#fff; border:1px solid #d8dee6; padding:1rem 1.2rem; margin-bottom:1rem; }
+  nav.toc ol { margin:.3rem 0 0; padding-left:1.3rem; }
+  nav.toc a { color:#1d4ed8; text-decoration:none; }
+  section { background:#fff; border:1px solid #d8dee6; padding:1.15rem 1.3rem; margin:0 0 1rem; }
+  h2 { margin:0 0 .55rem; font-size:1.15rem; border-bottom:3px solid #dbeafe; padding-bottom:.3rem; }
+  h3 { margin:1rem 0 .35rem; font-size:1.02rem; }
+  table { width:100%; border-collapse:collapse; font-size:.88rem; }
+  th,td { border:1px solid #d8dee6; padding:.4rem .5rem; text-align:left; vertical-align:top; }
+  th { background:#eef2f7; }
+  .thesis { background:#eff6ff; border-left:4px solid #2563eb; padding:.85rem 1.1rem; margin:0 0 1rem; font-weight:700; }
+  .thesis span { display:block; margin-top:.35rem; font-weight:500; font-size:.92rem; color:#334155; }
+  .warn { background:#fff7ed; border-left:4px solid #d97706; padding:.75rem 1rem; margin:.7rem 0; }
+  .fig { border:1px solid #e2e8f0; background:#f8fafc; padding:.5rem; overflow:auto; margin:.7rem 0; }
+  .cap { font-size:.82rem; color:#64748b; margin:.3rem 0 0; }
+  code { background:#eef2f6; padding:.06em .3em; }
+  pre { background:#0f172a; color:#e2e8f0; padding:.85rem 1rem; border-radius:.4rem; overflow:auto; font-size:.8rem; }
+  footer { font-size:.82rem; color:#64748b; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap" style="padding:0">
+    <h1>현재 소스에 있는 보정 — 몇 개인지, 무엇이 비었는지</h1>
+    <p>작성 2026-08-18 00:37:02 · 직진 → 조향 한 바퀴 → 직진 복귀 시험용 로그 포함</p>
+  </div>
+</header>
+<div class="wrap">
+
+<nav class="toc">
+  <ol>
+    <li><a href="#ans">한 줄</a></li>
+    <li><a href="#count">보정 개수</a></li>
+    <li><a href="#formula">코드에 적힌 식</a></li>
+    <li><a href="#list">보정 전부 (파일·숫자)</a></li>
+    <li><a href="#gear">기어비가 소스에 있나</a></li>
+    <li><a href="#test">시험 방법과 로그</a></li>
+    <li><a href="#judge">숫자로 어디가 틀린지</a></li>
+  </ol>
+</nav>
+
+<section id="ans">
+  <h2>1. 한 줄</h2>
+  <p class="thesis">
+    매핑 경로에서 오돔 식에 실제로 들어가는 보정 숫자는 <strong>4개</strong>이고, 전부 기본값(1.0 또는 가정값)입니다. 엔코더 기어비는 이 저장소에 없습니다.
+    <span>조향각×전진으로 “완벽하게 맞춘” 표는 없습니다. 보드가 준 vy에 1000을 곱해 도(°)로 보고, 축거 0.25 m로 자전거 식을 돌릴 뿐입니다.</span>
+  </p>
+</section>
+
+<section id="count">
+  <h2>2. 보정 개수</h2>
+  <table>
+    <tr><th>종류</th><th>개수</th><th>오돔 식에 들어가나</th></tr>
+    <tr><td>A. 명령 한도·데드존 (조향을 덜 꺾게)</td><td>5</td><td>아니오. 명령만 자름</td></tr>
+    <tr><td>B. 오돔 식의 숫자</td><td>4</td><td>예</td></tr>
+    <tr><td>C. 센서 융합</td><td>2</td><td>헤딩을 다시 섞음</td></tr>
+    <tr><td>D. 포크가 넣은 자이로 적분</td><td>1</td><td>지금 SLAM이 이걸 봄</td></tr>
+    <tr><td>E. 캘리브 도구 (매핑이 안 씀)</td><td>1</td><td>아니오</td></tr>
+    <tr><td>합</td><td>13</td><td>식에 쓰는 것 4 + 융합 2 + 자이로 1</td></tr>
+  </table>
+  <p>엔코더 펄스→미터 기어비, 실측 조향각 표, 서보 중립 오프셋은 <strong>0개</strong>입니다.</p>
+</section>
+
+<section id="formula">
+  <h2>3. 코드에 적힌 식</h2>
+  <pre>보드:     vx, vy, angular = get_motion_data()
+vel_raw:  linear.x = vx
+          linear.y = vy * 1000          # 주석: steer angle (도)
+          angular.z = angular           # 주석: this is invalued
+
+base_node_R2:
+          vx' = vel_raw.linear.x * linear_scale_x     # 1.0
+          δ°  = vel_raw.linear.y * linear_scale_y     # 1.0, 이미 *1000 된 값
+          L   = 0.25
+          R   = L / tan(δ° · π/180)
+          ω   = vx' / R
+          x  += vx' · cos(heading) · dt
+          y  += vx' · sin(heading) · dt
+          heading += ω · dt</pre>
+  <p>예: 보드 vy = 0.04 이면 δ = 40°. R = 0.25/tan(40°) = 0.298 m. vx=0.18 이면 ω = 0.60 rad/s ≈ 34°/s. 실제 앞바퀴가 20°만 꺾이면, 같은 식은 각속도를 약 2.3배 과장합니다. 그게 “기어비/스케일이 안 맞다”는 말과 같은 종류의 오차입니다.</p>
+  <div class="fig">
+    <svg viewBox="0 0 900 160" xmlns="http://www.w3.org/2000/svg">
+      <rect width="900" height="160" fill="#f8fafc"/>
+      <rect x="16" y="40" width="150" height="50" fill="#fff" stroke="#334155" stroke-width="2"/>
+      <text x="91" y="70" text-anchor="middle" font-size="13" font-family="Noto Sans KR,sans-serif">cmd vy 0.04</text>
+      <rect x="196" y="40" width="160" height="50" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+      <text x="276" y="70" text-anchor="middle" font-size="13" font-family="Noto Sans KR,sans-serif">보드 vy ≈ 0.04</text>
+      <rect x="386" y="40" width="170" height="50" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+      <text x="471" y="70" text-anchor="middle" font-size="13" font-family="Noto Sans KR,sans-serif">×1000 → 40°</text>
+      <rect x="586" y="40" width="140" height="50" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+      <text x="656" y="70" text-anchor="middle" font-size="13" font-family="Noto Sans KR,sans-serif">R=L/tanδ</text>
+      <rect x="756" y="40" width="128" height="50" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2"/>
+      <text x="820" y="70" text-anchor="middle" font-size="13" font-family="Noto Sans KR,sans-serif">ω=vx/R</text>
+      <polyline points="166,65 196,65" fill="none" stroke="#475569" stroke-width="2"/>
+      <polyline points="356,65 386,65" fill="none" stroke="#475569" stroke-width="2"/>
+      <polyline points="556,65 586,65" fill="none" stroke="#475569" stroke-width="2"/>
+      <polyline points="726,65 756,65" fill="none" stroke="#475569" stroke-width="2"/>
+      <text x="450" y="130" text-anchor="middle" font-size="12" fill="#64748b" font-family="Noto Sans KR,sans-serif">실측 앞바퀴 각이 없으면 40°가 맞는지 코드가 모릅니다.</text>
+    </svg>
+    <p class="cap">그림 1. 조향이 오돔으로 가는 유일한 길. 보정표 없음.</p>
+  </div>
+</section>
+
+<section id="list">
+  <h2>4. 보정 전부 (파일·숫자)</h2>
+
+  <h3>A. 명령 한도 · 데드존 — 5개</h3>
+  <table>
+    <tr><th>번호</th><th>이름</th><th>지금 값</th><th>파일</th><th>하는 일</th></tr>
+    <tr><td>A1</td><td>스틱 데드존</td><td>0.45</td><td><code>yahboom_joy_R2.py</code> <code>filter_data</code></td><td>|축|&lt;0.45 이면 0</td></tr>
+    <tr><td>A2</td><td>전진 한도</td><td>0.18 m/s</td><td>같은 파일 <code>xspeed_limit</code></td><td>cmd.linear.x 자름</td></tr>
+    <tr><td>A3</td><td>조향 한도</td><td>0.04</td><td><code>yspeed_limit</code></td><td>보드 단위. 도(°)가 아님</td></tr>
+    <tr><td>A4</td><td>선형 기어(버튼)</td><td>기본 1.0</td><td><code>linear_Gear</code></td><td>1 → 1/4 순환. 매핑 중 보통 1</td></tr>
+    <tr><td>A5</td><td>매핑 가드</td><td>0.18 / 0.04</td><td><code>mapping_speed_guard.py</code></td><td>2초마다 A2·A3를 다시 넣음</td></tr>
+  </table>
+  <p>드라이버의 <code>xlinear_limit</code> 1.0, <code>ylinear_limit</code> 1.0, <code>angular_limit</code> 1.0 은 선언만 하고 <code>cmd_vel_callback</code>에서 쓰지 않습니다.</p>
+
+  <h3>B. 오돔 식의 숫자 — 4개</h3>
+  <table>
+    <tr><th>번호</th><th>이름</th><th>지금 값</th><th>파일</th><th>하는 일</th></tr>
+    <tr><td>B1</td><td>조향 ×1000</td><td>×1000</td><td><code>Ackman_driver_R2.py</code> 157, 173행</td><td>보드 vy를 “도”로 봄</td></tr>
+    <tr><td>B2</td><td>축거 L</td><td>0.25 m</td><td><code>base_node_R2.cpp</code> 기본값. 런치는 안 덮어씀</td><td>회전 반지름</td></tr>
+    <tr><td>B3</td><td>linear_scale_x</td><td>1.0</td><td><code>yahboomcar_bringup_R2_launch.py</code></td><td>전진 속도 배율. 측정 안 함</td></tr>
+    <tr><td>B4</td><td>linear_scale_y</td><td>1.0</td><td>같은 런치</td><td>조향각 배율. 측정 안 함</td></tr>
+  </table>
+  <p>보드 <code>angular</code>는 <code>vel_raw.angular.z</code>로 나가지만 주석이 “invalued”이고, <code>base_node_R2</code>는 이 값을 쓰지 않습니다. ω는 오직 B1–B4 식으로 만듭니다.</p>
+  <p><code>last_vel_time_</code> 이 첫 콜백 전에 초기화되지 않습니다. 첫 dt가 큰 쓰레기 값이 될 수 있습니다.</p>
+
+  <h3>C. 융합 — 2개</h3>
+  <table>
+    <tr><th>번호</th><th>이름</th><th>지금 값</th><th>파일</th><th>하는 일</th></tr>
+    <tr><td>C1</td><td>Madgwick</td><td>자석 끔, gain 0.1</td><td><code>imu_filter_param.yaml</code></td><td><code>/imu/data_raw</code> → <code>/imu/data</code></td></tr>
+    <tr><td>C2</td><td>EKF</td><td>odom_raw의 x,y,yaw,vx,vy,ω + IMU yaw·ω</td><td>library_ws <code>ekf_x1_x3.yaml</code></td><td><code>/odom</code>. 오돔 yaw 공분산 0.001로 자신을 강하게 믿음</td></tr>
+  </table>
+
+  <h3>D. 포크 추가 — 1개</h3>
+  <table>
+    <tr><th>번호</th><th>이름</th><th>지금 값</th><th>파일</th><th>하는 일</th></tr>
+    <tr><td>D1</td><td>자이로 적분 오돔</td><td>wz를 적분, L 없음</td><td><code>imu_heading_odom.py</code></td><td><code>/odom_slam</code>. 000955 주행에서 조향 잔차 38 cm</td></tr>
+  </table>
+
+  <h3>E. 매핑이 안 쓰는 것 — 1개</h3>
+  <table>
+    <tr><th>번호</th><th>이름</th><th>지금 값</th><th>파일</th><th>하는 일</th></tr>
+    <tr><td>E1</td><td>직선 캘리브 노드</td><td>1.0</td><td><code>calibrate_linear_R2.py</code></td><td>줄자로 잰 거리에 배율을 곱하는 도구. 매핑 런치에 없음</td></tr>
+  </table>
+
+  <div class="warn">
+    주석으로만 남은 것: <code>set_car_motion(vx*1.8, …)</code>, <code>vy/1000*180/π</code>. 실행되지 않습니다.
+  </div>
+</section>
+
+<section id="gear">
+  <h2>5. 기어비가 소스에 있나</h2>
+  <p class="thesis">
+    이 포크·야붐 파이썬/C++ 오돔에는 기어비 상수가 없습니다.
+    <span>바퀴 펄스→m/s 변환은 STM32 펌웨어 <code>get_motion_data()</code> 안에 있습니다. 소스에서 확인·수정할 수 없습니다. B3=1.0 이 “보드가 말한 vx를 그대로 미터로 믿는다”는 뜻입니다.</span>
+  </p>
+  <p>조향도 마찬가지입니다. 서보 PWM→실제 앞바퀴 각 표가 없습니다. B1이 “보드 vy×1000 = 도”라고 가정합니다. 가정과 실측이 다르면, 결과는 기어비가 틀린 것과 같은 모양으로 나옵니다.</p>
+</section>
+
+<section id="test">
+  <h2>6. 시험 방법과 로그</h2>
+  <p>줄자를 바닥에 붙입니다. 매핑을 켜면 로그가 자동으로 씁니다.</p>
+  <p>파일: <code>~/maps/calib_logs/ackermann_YYYYMMDD_HHMMSS.csv</code><br>
+  프로그램: <code>scripts/log_ackermann_calib.py</code> (매핑 런치에 포함)</p>
+  <ol>
+    <li><strong>직진</strong> — 조향 스틱 가운데. 줄자 3.00 m. 멈춤.</li>
+    <li><strong>한 바퀴</strong> — 조향을 한쪽으로 고정, 전진. 제자리로 올 때까지 1회전. 바닥 원의 지름을 잽니다.</li>
+    <li><strong>직진 복귀</strong> — 다시 조향 가운데, 줄자 3.00 m.</li>
+  </ol>
+  <p>CSV 열 (20 Hz):</p>
+  <table>
+    <tr><th>열</th><th>뜻</th></tr>
+    <tr><td><code>cmd_vx</code> / <code>cmd_vy</code></td><td>패드가 낸 명령</td></tr>
+    <tr><td><code>raw_vx</code></td><td>보드가 말한 전진 속도</td></tr>
+    <tr><td><code>raw_vy_x1000</code> = <code>delta_deg</code></td><td>코드가 조향각(도)으로 쓰는 값</td></tr>
+    <tr><td><code>R_m</code></td><td>L=0.25, δ=delta_deg 로 계산한 반지름</td></tr>
+    <tr><td><code>wz_bicycle</code></td><td>식의 ω</td></tr>
+    <tr><td><code>imu_wz</code></td><td>보드 자이로 z</td></tr>
+    <tr><td><code>ratio_imu_over_bicycle</code></td><td>자이로 ω / 식 ω. 1이면 식이 자이로와 같음</td></tr>
+    <tr><td><code>oraw_*</code> / <code>ekf_*</code> / <code>slam_*</code></td><td>세 오돔의 위치·헤딩</td></tr>
+    <tr><td><code>phase</code></td><td>straight / circle / steer_only / stop (명령으로 추정)</td></tr>
+  </table>
+</section>
+
+<section id="judge">
+  <h2>7. 숫자로 어디가 틀린지</h2>
+  <p>줄자 값을 로그 옆에 둡니다. 판정은 아래만 봅니다.</p>
+  <table>
+    <tr><th>구간</th><th>줄자·바닥</th><th>로그에서 볼 것</th><th>판정</th></tr>
+    <tr>
+      <td>직진 3.00 m</td>
+      <td>3.00 m</td>
+      <td>phase=straight 동안 Δ<code>oraw_x</code> (또는 적분 raw_vx·dt)</td>
+      <td>오돔/줄자. 1.10이면 전진 스케일(기어·B3)이 10% 큼</td>
+    </tr>
+    <tr>
+      <td>직진 복귀 3.00 m</td>
+      <td>3.00 m</td>
+      <td>같은 비</td>
+      <td>두 직진 비가 같으면 랜덤이 아님</td>
+    </tr>
+    <tr>
+      <td>한 바퀴</td>
+      <td>바닥 원 지름 D, 회전 1.00 바퀴</td>
+      <td>평균 <code>delta_deg</code>, 평균 <code>R_m</code>, Δ<code>oraw_yaw</code>, ∫imu_wz dt</td>
+      <td>지름/2 대 R_m. yaw가 360°가 아니면 조향각 가정이 틀림</td>
+    </tr>
+    <tr>
+      <td>한 바퀴 중</td>
+      <td>—</td>
+      <td>평균 <code>ratio_imu_over_bicycle</code></td>
+      <td>0.5면 식이 자이로의 2배로 돎 → ×1000 또는 L이 큼</td>
+    </tr>
+    <tr>
+      <td>직진인데 y가 모임</td>
+      <td>줄자는 직선</td>
+      <td>phase=straight 인데 |<code>oraw_y</code>| 증가</td>
+      <td>서보 중립이 0이 아님 (기계 트림)</td>
+    </tr>
+  </table>
+  <pre>전진 스케일 후보  =  줄자 3.00  /  오돔이 센 거리
+실제 반지름        =  바닥 지름 / 2
+식의 반지름        =  CSV 의 R_m 평균 (circle)
+조향각 배율 후보   =  atan(L / 실제R)  /  atan(L / 식의R)
+한 바퀴 헤딩       =  oraw_yaw 끝-시작, imu 적분
+                     둘 다 ≈ ±360° 이어야 식·자이로가 맞음</pre>
+  <p>매핑을 켠 뒤 위 세 동작을 하고 중지해 주세요. CSV를 같은 식으로 계산해 표로 돌려 드리겠습니다.</p>
+</section>
+
+<footer>
+  <p>R2_오돔보정목록_20260818_003702.html · 소스 기준 Ackman_driver_R2.py, base_node_R2.cpp, yahboom_joy_R2.py, ekf_x1_x3.yaml, imu_heading_odom.py</p>
+</footer>
+</div>
+</body>
+</html>

@@ -227,7 +227,7 @@ def main() -> int:
     entry = reg['maps'][map_id]
     export_yaml = entry.get('export_yaml')
     if not export_yaml or not Path(export_yaml).exists():
-        print('ERROR: export map first: bash scripts/export_rtabmap_map.sh')
+        print('ERROR: export map first: bash scripts/save_cartographer_map.sh')
         return 1
 
     yaml_path = Path(export_yaml)

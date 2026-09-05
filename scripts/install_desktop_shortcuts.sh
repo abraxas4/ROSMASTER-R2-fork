@@ -9,9 +9,11 @@ DESKTOP_DST="${HOME}/Desktop"
 
 OBSOLETE=(
   R2_RTABMap_Mapping.desktop
+  R2_RTABMap_View.desktop
   R2_Mapping.desktop
   R2_RViz.desktop
   R2_Lidar_Mapping.desktop
+  R2_Map_Continue.desktop
 )
 
 if [[ ! -d "$DESKTOP_SRC" ]]; then
@@ -44,5 +46,5 @@ for entry in "$DESKTOP_SRC"/*.desktop; do
 done
 
 echo ""
-echo "Desktop shortcuts (6 icons):"
-echo "  매핑 이어서 / 매핑 새로 / 맵 실시간 보기 / 매핑 중지 / 순찰 시작 / 순찰 중지"
+echo "Desktop shortcuts:"
+echo "  매핑 시작 / 매핑 중지 / 순찰 시작 / 순찰 중지"

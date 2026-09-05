@@ -38,8 +38,10 @@ class JoyTeleop(Node):
 		self.sub_Joy = self.create_subscription(Joy,'joy', self.buttonCallback, 10)
 		
 		#declare parameter and get the value
-		self.declare_parameter('xspeed_limit', 0.2)
-		self.declare_parameter('yspeed_limit', 1.0)
+		# R2 set_car_motion vy is about [-0.045, 0.045]. 1.0 made any stick past
+		# the deadzone become full lock-to-lock steer.
+		self.declare_parameter('xspeed_limit', 0.35)
+		self.declare_parameter('yspeed_limit', 0.045)
 		self.declare_parameter('angular_speed_limit', 5.0)
 		self.xspeed_limit = self.get_parameter('xspeed_limit').get_parameter_value().double_value
 		self.yspeed_limit = self.get_parameter('yspeed_limit').get_parameter_value().double_value
@@ -48,6 +50,9 @@ class JoyTeleop(Node):
 		
 	def buttonCallback(self,joy_data):
 		if not isinstance(joy_data, Joy): return
+		self.xspeed_limit = self.get_parameter('xspeed_limit').get_parameter_value().double_value
+		self.yspeed_limit = self.get_parameter('yspeed_limit').get_parameter_value().double_value
+		self.angular_speed_limit = self.get_parameter('angular_speed_limit').get_parameter_value().double_value
 		if self.user_name == "jetson": self.user_jetson(joy_data)
 		else: self.user_pc(joy_data)
 		
@@ -82,7 +87,8 @@ class JoyTeleop(Node):
 			elif self.angular_Gear == 3.0 / 4: self.angular_Gear = 1.0
 		# Left stick only: axes[1]=forward/back, axes[0]=Ackermann steer
 		xlinear_speed = self.filter_data(joy_data.axes[1]) * self.xspeed_limit * self.linear_Gear
-		ylinear_speed = self.filter_data(joy_data.axes[0]) * self.yspeed_limit * self.linear_Gear
+		# Steer lock is independent of speed gear — scaling vy by gear opened the turning radius.
+		ylinear_speed = self.filter_data(joy_data.axes[0]) * self.yspeed_limit
 		if xlinear_speed > self.xspeed_limit: xlinear_speed = self.xspeed_limit
 		elif xlinear_speed < -self.xspeed_limit: xlinear_speed = -self.xspeed_limit
 		if ylinear_speed > self.yspeed_limit: ylinear_speed = self.yspeed_limit
@@ -119,7 +125,7 @@ class JoyTeleop(Node):
 			elif self.angular_Gear == 1.0 / 2: self.angular_Gear = 3.0 / 4
 			elif self.angular_Gear == 3.0 / 4: self.angular_Gear = 1.0
 		xlinear_speed = self.filter_data(joy_data.axes[1]) * self.xspeed_limit * self.linear_Gear
-		ylinear_speed = self.filter_data(joy_data.axes[0]) * self.yspeed_limit * self.linear_Gear
+		ylinear_speed = self.filter_data(joy_data.axes[0]) * self.yspeed_limit
 		angular_speed = self.filter_data(joy_data.axes[3]) * self.angular_speed_limit * self.angular_Gear
 		if xlinear_speed > self.xspeed_limit: xlinear_speed = self.xspeed_limit
 		elif xlinear_speed < -self.xspeed_limit: xlinear_speed = -self.xspeed_limit

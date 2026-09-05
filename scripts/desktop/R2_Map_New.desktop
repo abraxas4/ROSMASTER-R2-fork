@@ -1,9 +1,9 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=R2 매핑 새로 (카메라+라이다)
-Comment=New RTAB-Map auto-named by WiFi lat/lon. Rename later: rename_map.sh
-Exec=gnome-terminal --title=R2 Map New -- bash -c "bash /home/jetson/ROSMASTER-R2-fork/scripts/start_rtabmap_new.sh; exec bash"
+Name=R2 매핑 시작
+Comment=Cartographer 2D mapping, lidar only
+Exec=gnome-terminal --title=R2 Map -- bash -c "bash /home/jetson/ROSMASTER-R2-fork/scripts/start_cartographer.sh; exec bash"
 Icon=document-new
 Terminal=false
 Categories=Development;Robotics;

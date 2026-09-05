@@ -1,53 +1,44 @@
 #!/usr/bin/env python3
-"""Seed AMCL from the current map->base_footprint TF (RTAB-Map localization)."""
+"""Seed AMCL at map origin. Start the robot where Cartographer mapping started."""
 
 from __future__ import annotations
+
+import argparse
 
 import rclpy
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from rclpy.node import Node
-from tf2_ros import Buffer, TransformException, TransformListener
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description='Publish Nav2 /initialpose')
+    parser.add_argument('--x', type=float, default=0.0)
+    parser.add_argument('--y', type=float, default=0.0)
+    parser.add_argument('--yaw', type=float, default=0.0)
+    args = parser.parse_args()
+
     rclpy.init()
     node = Node('publish_initial_pose')
-    buf = Buffer()
-    listener = TransformListener(buf, node)
     pub = node.create_publisher(PoseWithCovarianceStamped, '/initialpose', 10)
 
-    pose = None
-    for _ in range(60):
-        rclpy.spin_once(node, timeout_sec=0.5)
-        try:
-            tf = buf.lookup_transform('map', 'base_footprint', rclpy.time.Time())
-        except TransformException:
-            continue
-        pose = PoseWithCovarianceStamped()
-        pose.header.frame_id = 'map'
+    pose = PoseWithCovarianceStamped()
+    pose.header.frame_id = 'map'
+    pose.header.stamp = node.get_clock().now().to_msg()
+    pose.pose.pose.position.x = args.x
+    pose.pose.pose.position.y = args.y
+    pose.pose.pose.orientation.z = float(__import__('math').sin(args.yaw / 2.0))
+    pose.pose.pose.orientation.w = float(__import__('math').cos(args.yaw / 2.0))
+    pose.pose.covariance[0] = 0.25
+    pose.pose.covariance[7] = 0.25
+    pose.pose.covariance[35] = 0.07
+
+    for _ in range(8):
         pose.header.stamp = node.get_clock().now().to_msg()
-        pose.pose.pose.position.x = tf.transform.translation.x
-        pose.pose.pose.position.y = tf.transform.translation.y
-        pose.pose.pose.position.z = tf.transform.translation.z
-        pose.pose.pose.orientation = tf.transform.rotation
-        pose.pose.covariance[0] = 0.25
-        pose.pose.covariance[7] = 0.25
-        pose.pose.covariance[35] = 0.07
-        break
-
-    if pose is None:
-        node.get_logger().error('Could not read map->base_footprint TF for initial pose')
-        node.destroy_node()
-        rclpy.shutdown()
-        return 1
-
-    for _ in range(5):
         pub.publish(pose)
         rclpy.spin_once(node, timeout_sec=0.2)
 
     node.get_logger().info(
-        'Initial pose published: '
-        f'({pose.pose.pose.position.x:.2f}, {pose.pose.pose.position.y:.2f})'
+        f'Initial pose published: ({args.x:.2f}, {args.y:.2f}, yaw={args.yaw:.2f})'
     )
     node.destroy_node()
     rclpy.shutdown()

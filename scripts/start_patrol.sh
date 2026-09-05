@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start localization + Nav2 + geofence patrol on the active map.
+# Localization (AMCL) + Nav2 + geofence patrol on the active Cartographer map.
 
 set -euo pipefail
 
@@ -7,31 +7,37 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=run_docker_env.sh
 source "$SCRIPT_DIR/run_docker_env.sh"
 
-CAMERA_WAIT_SEC="${CAMERA_WAIT_SEC:-25}"
-CAMERA_LOG="${CAMERA_LOG:-/tmp/patrol_camera.log}"
-LOC_LAUNCH="$SCRIPT_DIR/launch/rtabmap_localization_managed.launch.py"
-NAV_PARAMS="${NATIVE_WS_HOST}/install/yahboomcar_nav/share/yahboomcar_nav/params/rtabmap_nav_params.yaml"
+LOC_LAUNCH="$SCRIPT_DIR/launch/patrol_managed.launch.py"
+NAV_PARAMS="${NATIVE_WS_HOST}/install/yahboomcar_nav/share/yahboomcar_nav/params/teb_nav_params.yaml"
 
-echo "=== R2 Geofence Patrol ==="
+echo "=== R2 Geofence Patrol (Cartographer map + AMCL + Nav2) ==="
 
 bash "$SCRIPT_DIR/stop_robot_stack.sh"
 
-REG_OUT="$(python3 "$SCRIPT_DIR/map_registry.py" continue)"
-eval "$(echo "$REG_OUT" | grep -E '^ACTIVE_MAP_')"
+if ! python3 "$SCRIPT_DIR/map_registry.py" continue >/tmp/patrol_registry.env 2>/tmp/patrol_registry.err; then
+  echo "No registered Nav2 map. Converting latest Cartographer pbstream..."
+  bash "$SCRIPT_DIR/save_cartographer_map.sh"
+  python3 "$SCRIPT_DIR/map_registry.py" continue >/tmp/patrol_registry.env
+fi
+# shellcheck disable=SC1091
+source /tmp/patrol_registry.env
 
-DB_PATH="${ACTIVE_MAP_DB:?}"
+MAP_YAML="${ACTIVE_MAP_YAML:?}"
 MAP_LABEL="${ACTIVE_MAP_NAME:-${ACTIVE_MAP_ID:-map}}"
 
-if [[ ! -f "$DB_PATH" ]]; then
-  echo "ERROR: no map database. Run mapping first."
+if [[ ! -f "$MAP_YAML" ]]; then
+  echo "ERROR: Nav2 map yaml not found: ${MAP_YAML}"
+  exit 1
+fi
+if [[ ! -f "$NAV_PARAMS" ]]; then
+  echo "ERROR: Nav2 params not found: ${NAV_PARAMS}"
   exit 1
 fi
 
 set +u
 # shellcheck source=native_ros_setup.bash
 source "$SCRIPT_DIR/native_ros_setup.bash"
-
-EXPORT_YAML="${HOME}/maps/exported/${ACTIVE_MAP_ID}/nav_map.yaml"
+set -u
 
 wait_for_topic() {
   local topic="$1"
@@ -47,54 +53,12 @@ wait_for_topic() {
   return 1
 }
 
-cleanup() {
-  echo ""
-  echo "Stopping patrol stack..."
-  kill "$CAM_PID" "$LOC_PID" "$NAV_PID" "$PATROL_PID" 2>/dev/null || true
-  wait "$CAM_PID" "$LOC_PID" "$NAV_PID" "$PATROL_PID" 2>/dev/null || true
-  bash "$SCRIPT_DIR/stop_robot_stack.sh"
-}
-trap cleanup EXIT INT TERM
-
-echo "[1/4] Camera..."
-ros2 launch astra_camera astro_pro_plus.launch.xml >"${CAMERA_LOG}" 2>&1 &
-CAM_PID=$!
-if ! wait_for_topic /camera/color/image_raw "${CAMERA_WAIT_SEC}"; then
-  echo "ERROR: camera not ready"
-  exit 1
-fi
-
-echo "[2/4] RTAB-Map localization (${MAP_LABEL})..."
-ros2 launch "$LOC_LAUNCH" database_path:="${DB_PATH}" > /tmp/patrol_loc.log 2>&1 &
-LOC_PID=$!
-sleep 15
-
-if [[ ! -f "$EXPORT_YAML" ]]; then
-  echo "[2b/4] Exporting 2D map for Nav2 (from /map topic)..."
-  if ! bash "$SCRIPT_DIR/export_rtabmap_map.sh"; then
-    echo "ERROR: map export failed. See /tmp/patrol_loc.log"
-    tail -20 /tmp/patrol_loc.log 2>/dev/null || true
-    exit 1
-  fi
-fi
-
-MAP_YAML="$(python3 -c "
-import json, pathlib
-reg=json.loads(pathlib.Path('${HOME}/maps/registry.json').read_text())
-print(reg['maps']['${ACTIVE_MAP_ID}'].get('export_yaml','${EXPORT_YAML}'))
-")"
-
-if [[ ! -f "$MAP_YAML" ]]; then
-  echo "ERROR: Nav2 map yaml not found: ${MAP_YAML}"
-  exit 1
-fi
-
 wait_for_lifecycle_active() {
   local node="$1"
   local timeout="${2:-90}"
   local elapsed=0
+  local state=""
   while (( elapsed < timeout )); do
-    local state
     state="$(ros2 lifecycle get "${node}" 2>/dev/null | awk '{print $1}')"
     if [[ "${state}" == "active" ]]; then
       echo "  ${node}: active"
@@ -107,7 +71,30 @@ wait_for_lifecycle_active() {
   return 1
 }
 
-echo "[3/4] Nav2 (${MAP_YAML})..."
+cleanup() {
+  echo ""
+  echo "Stopping patrol stack..."
+  kill "$LOC_PID" "$NAV_PID" "$PATROL_PID" 2>/dev/null || true
+  wait "$LOC_PID" "$NAV_PID" "$PATROL_PID" 2>/dev/null || true
+  bash "$SCRIPT_DIR/stop_robot_stack.sh"
+}
+trap cleanup EXIT INT TERM
+
+echo "[1/3] Lidar + odom (${MAP_LABEL})..."
+ros2 launch "$LOC_LAUNCH" > /tmp/patrol_loc.log 2>&1 &
+LOC_PID=$!
+if ! wait_for_topic /scan 25; then
+  echo "ERROR: /scan not ready. See /tmp/patrol_loc.log"
+  tail -20 /tmp/patrol_loc.log 2>/dev/null || true
+  exit 1
+fi
+if ! wait_for_topic /odom 20; then
+  echo "ERROR: /odom not ready. See /tmp/patrol_loc.log"
+  tail -20 /tmp/patrol_loc.log 2>/dev/null || true
+  exit 1
+fi
+
+echo "[2/3] Nav2 + AMCL (${MAP_YAML})..."
 ros2 launch nav2_bringup bringup_launch.py \
   map:="${MAP_YAML}" \
   params_file:="${NAV_PARAMS}" \
@@ -127,16 +114,17 @@ if ! wait_for_lifecycle_active /bt_navigator 60; then
   exit 1
 fi
 
-echo "[3b/4] Seeding AMCL from RTAB-Map pose..."
+echo "[2b/3] Seeding AMCL at map origin (start the robot where mapping started)..."
 if ! python3 "$SCRIPT_DIR/publish_initial_pose.py"; then
-  echo "WARN: initial pose publish failed — patrol may drift"
+  echo "WARN: initial pose publish failed — patrol may not localize"
 fi
 sleep 2
 
-echo "[4/4] Geofence patrol loop..."
+echo "[3/3] Geofence patrol loop..."
+echo "  - Map: ${MAP_YAML}"
 echo "  - Geofence: mapped area minus margin (see ~/maps/geofence/)"
-echo "  - Waypoints: known-free cells only (not map unknown edges)"
-echo "  - Obstacles: lidar via Nav2 DWB planner"
+echo "  - Waypoints: known-free cells only"
+echo "  - Obstacles: lidar via Nav2 TEB"
 echo "  - Stop: Ctrl+C or R2 순찰 중지"
 echo ""
 

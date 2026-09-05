@@ -2,7 +2,7 @@
 # Stop robot-related PIDs without pkill -f (avoids killing the caller).
 set +e
 # comm is often truncated to 15 chars; match by prefix, not exact -x.
-names='rtabmap rtabmap_viz astra_camera ydlidar Ackman imu_filter ekf_node joy_node yahboom_joy rgbd_sync base_node_R2 robot_state_pub joint_state_pub'
+names='cartographer_no cartographer_oc astra_camera ydlidar Ackman imu_filter ekf_node joy_node yahboom_joy mapping_speed base_node_R2 robot_state_pub joint_state_pub'
 for n in $names; do
   pids=$(pgrep "$n" 2>/dev/null)
   [ -n "$pids" ] && kill $pids 2>/dev/null
@@ -17,7 +17,7 @@ done
 for pid in $(pgrep -x python3); do
   args=$(tr '\0' ' ' < /proc/$pid/cmdline 2>/dev/null || true)
   case "$args" in
-    *rtabmap_managed.launch.py*|*rtabmap_viz_managed*|*astro_pro_plus.launch.xml*|*yahboomcar_bringup_R2_launch.py*|*ydlidar_raw_launch.py*)
+    *cartographer_managed.launch.py*|*patrol_managed.launch.py*|*astro_pro_plus.launch.xml*|*yahboomcar_bringup_R2_launch.py*|*ydlidar_raw_launch.py*)
       kill "$pid" 2>/dev/null
       ;;
   esac

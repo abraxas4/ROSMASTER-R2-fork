@@ -143,7 +143,12 @@ class yahboomcar_driver(Node):
 		imu.linear_acceleration.z = az*1.0
 		imu.angular_velocity.x = gx*1.0
 		imu.angular_velocity.y = gy*1.0
-		imu.angular_velocity.z = gz*1.0
+		# Board gz is opposite ROS (+z CCW). Left steer must be +wz.
+		# Hold yaw while stopped so Madgwick/EKF do not spin in place.
+		gz_out = -gz*1.0
+		if abs(vx) < 0.03:
+			gz_out = 0.0
+		imu.angular_velocity.z = gz_out
 
 		mag.header.stamp = time_stamp.to_msg()
 		mag.header.frame_id = self.imu_link

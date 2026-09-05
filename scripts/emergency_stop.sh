@@ -15,8 +15,10 @@ pkill -9 -x joy_node 2>/dev/null || true
 pkill -9 -x imu_filter_madgwick_node 2>/dev/null || true
 pkill -9 -f ydlidar 2>/dev/null || true
 pkill -9 -f astra_camera 2>/dev/null || true
-pkill -9 -f rtabmap 2>/dev/null || true
 pkill -9 -f slam_gmapping 2>/dev/null || true
+pkill -9 -x cartographer_node 2>/dev/null || true
+pkill -9 -x cartographer_occupancy_grid_node 2>/dev/null || true
+pkill -9 -f nav2_bringup 2>/dev/null || true
 pkill -9 -f robot_state_publisher 2>/dev/null || true
 pkill -9 -f joint_state_publisher 2>/dev/null || true
 pkill -9 -f robot_localization 2>/dev/null || true

@@ -80,7 +80,10 @@ def generate_launch_description():
         parameters=[{
             'pub_odom_tf': LaunchConfiguration('pub_odom_tf'),
             'linear_scale_x': 1.0,
-            'linear_scale_y': 1.0,
+            # 2026-08-28: |scale|=0.90 closes the loop (5 cm, |yaw|≈351°).
+            # Sign must be + so joystick-left / physical CCW is +yaw (ROS).
+            # Negative matched inverted IMU z; IMU z is flipped in Ackman_driver_R2.
+            'linear_scale_y': 0.90,
         }]
     )
 
