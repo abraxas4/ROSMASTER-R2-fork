@@ -232,22 +232,29 @@ minimum_turning_radius: 0.35  # 최소 회전 반경 (m)
 |---|---|---|
 | 경로 계획 | nav2_smac_planner | Smac Hybrid-A* (Reeds-Shepp, Ackermann 지원) |
 | 경로 추종 | nav2_regulated_pure_pursuit_controller | RPP (Ackermann 최적화) |
+| 충돌 감시 | nav2_collision_monitor | 0.40m 접근 감속, 0.20m 긴급 정지 |
 | SLAM | slam_toolbox | 온라인 맵 구축 |
 | 프론티어 탐색 | explore_lite (m-explore-ros2) | 자율 탐색 |
 | 위치 추정 | nav2_amcl | 파티클 필터 기반 MCL |
 | 센서 퓨전 | robot_localization | EKF (기존 사용 중) |
 | 행동 트리 | nav2_bt_navigator | 복구 동작 관리 |
+| 금지 필터 | nav2_costmap_2d::KeepoutFilter | 금지 구역 회피 |
 
 ### 새로 작성한 코드
 
 | 컴포넌트 | 파일 | 역할 |
 |---|---|---|
-| 슬립 감지 | `scripts/slip_detector.py` | 바퀴 오돔과 실제 모션 비교, 3초 지속 시 정지 |
+| **경로 추적 후진 복구** | `scripts/path_reverse_recovery.py` | **주행 경로를 따라 후진 + 조향 방향 교대 (180 lines)** |
+| **자동 순찰 생성** | `scripts/patrol_waypoint_generator.py` | **맵에서 순찰 웨이포인트 자동 생성 (200 lines)** |
+| 슬립 감지 (TF 기반) | `scripts/slip_detector.py` | TF map→base로 실제 모션 감지, 3초 지속 시 정지 |
 | 배터리 모니터 | `scripts/battery_monitor.py` | 배터리 전압 감시, 귀환 트리거 |
 | Odom 안정화 | `scripts/odom_sanity_checker.py` | 비정상 점프 보정 |
 | 복구 행동 트리 | `behavior_trees/navigate_w_recovery.xml` | 후진 복구 로직 |
-| Nav2 설정 | `config/nav2_params_ackermann.yaml` | R2 Ackermann 튜닝 |
+| Nav2 설정 | `config/nav2_params_ackermann.yaml` | R2 Ackermann 튜닝 + 깊이 카메라 + 충돌 모니터 |
+| 충돌 모니터 설정 | `config/collision_monitor_params.yaml` | 0.40m/0.20m 구역 설정 |
+| 금지 구역 | `maps/keepout_mask.yaml + .pgm` | 사용자 편집 가능 금지 구역 마스크 |
 | Launch 파일 | `launch/*.launch.py` | 모드별 실행 스크립트 |
+| 테스트 | `test/test_direction_alternation.py` | 방향 교대 로직 단위 테스트 |
 
 ### 왜 이런 선택을 했나?
 
@@ -257,9 +264,15 @@ minimum_turning_radius: 0.35  # 최소 회전 반경 (m)
 
 3. **explore_lite**: 가벼운 프론티어 기반 탐색. ROS 2 Humble에서 안정적.
 
-4. **후진 복구**: Ackermann은 제자리 회전이 불가능하므로, 막힘 시 후진으로 빠져나와 다른 방향으로 재시도.
+4. **경로 추적 후진 복구**: Ackermann은 제자리 회전이 불가능하므로, 막힘 시 **주행했던 경로를 따라** 후진 (직선 후진 아님). 이후 다른 방향으로 전진 (좌/우 교대).
 
-5. **슬립 감지**: 휠 오돔만으로는 미끄러짐을 모르므로, EKF 융합 오돔과 비교하여 실제 모션과 차이가 나면 슬립으로 판단.
+5. **슬립 감지 (TF 기반)**: 휠 오돔만으로는 미끄러짐을 모르므로, **TF map→base_footprint** (SLAM/AMCL 포즈)와 비교. EKF는 휠 인코더를 융합하므로 슬립 시 부정확.
+
+6. **충돌 모니터 (0.40m/0.20m)**: 정지는 최후 수단. 0.40m에서 **감속** (접근 행동), 0.20m에서만 긴급 정지. 전방과 우전방 중심 다각형.
+
+7. **자동 순찰 웨이포인트**: 사용자가 수동으로 찍지 않아도 맵의 자유 공간을 샘플링하여 순찰 경로 자동 생성. 루프 순찰.
+
+8. **깊이 카메라 (유리 감지)**: 라이다는 유리를 투과하므로 깊이 카메라 포인트클라우드를 로컬 코스트맵에 추가. Orin Nano 부하 고려하여 2.0m 제한.
 
 ## 튜닝 가이드
 
@@ -363,7 +376,13 @@ colcon test-result --verbose
 
 4. **explore_lite 설치**: 기본 apt 저장소에 없을 수 있음. 소스에서 빌드 필요 (INSTALL.md 참고).
 
-5. **Depth 카메라**: 기본 설정은 LiDAR만 사용. Depth 카메라를 사용하려면 `use_camera:=true` 및 `use_depth_scan:=true`로 r2_bringup.launch.py 실행.
+5. **Depth 카메라**: 로컬 코스트맵에 `/camera/depth/points` 추가됨. 토픽이 없으면 오류 없이 무시됨.
+
+6. **경로 추적 후진**: 5초 이상 주행해야 충분한 경로 기록. 짧은 주행 후 막히면 직선 후진.
+
+7. **금지 구역**: 빈 마스크가 제공됨. 사용자가 GIMP에서 흰색 영역을 그려야 함.
+
+8. **슬립 감지**: TF map→base가 필요하므로 SLAM 또는 AMCL이 실행 중이어야 함. 맵 없이는 작동 안 함.
 
 ## 문제 해결
 
