@@ -1,0 +1,45 @@
+# ros2_control controllers for ROSMASTER R2 (ROS 2 Jazzy, ros2_controllers 4.x)
+# Geometry from yahboomcar_R2.urdf.xacro:
+#   wheelbase 0.23529 m = front_*_steer_joint x 0.11922 - back_*_joint x (-0.11607)
+#   traction_track_width 0.1685 m = back_*_joint y +-0.08425
+#   steering_track_width 0.13 m   = front_*_steer_joint y +-0.065
+#   wheel radius 0.0345 m         = back_right_link.STL bounding box
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz. MCU auto-report refreshes each type every 40 ms, so >100 Hz adds nothing.
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    imu_sensor_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
+
+    ackermann_steering_controller:
+      type: ackermann_steering_controller/AckermannSteeringController
+
+imu_sensor_broadcaster:
+  ros__parameters:
+    sensor_name: imu_sensor
+    frame_id: imu_link
+    static_covariance_orientation: [1.0e6, 0.0, 0.0, 0.0, 1.0e6, 0.0, 0.0, 0.0, 1.0e6]
+    static_covariance_angular_velocity: [0.02, 0.0, 0.0, 0.0, 0.02, 0.0, 0.0, 0.0, 0.02]
+    static_covariance_linear_acceleration: [0.1, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.1]
+
+ackermann_steering_controller:
+  ros__parameters:
+    reference_timeout: 0.5          # stop if /cmd_vel stops for 0.5 s
+    # order: right, left
+    traction_joints_names: [back_right_joint, back_left_joint]
+    steering_joints_names: [front_right_steer_joint, front_left_steer_joint]
+    wheelbase: 0.23529
+    traction_track_width: 0.1685
+    steering_track_width: 0.13
+    traction_wheels_radius: 0.0345
+    open_loop: false
+    position_feedback: false
+    velocity_rolling_window_size: 4
+    base_frame_id: base_footprint
+    odom_frame_id: odom
+    enable_odom_tf: false            # launch sets true only when no EKF and no SLAM owns odom->base_footprint
+    pose_covariance_diagonal: [0.001, 0.001, 1.0e6, 1.0e6, 1.0e6, 0.03]
+    twist_covariance_diagonal: [0.002, 0.002, 1.0e6, 1.0e6, 1.0e6, 0.02]

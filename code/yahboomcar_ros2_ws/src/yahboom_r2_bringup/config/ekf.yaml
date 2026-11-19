@@ -1,0 +1,45 @@
+# robot_localization EKF: odom -> base_footprint
+# inputs : wheel odometry from ackermann_steering_controller (vx, vy=0, yaw rate)
+#          IMU from imu_sensor_broadcaster (yaw rate, x accel)
+#          (optional) visual odometry /vo from rtabmap rgbd_odometry - added by r2_bringup.launch.py
+# output : /odom (remapped from odometry/filtered) + TF odom -> base_footprint
+# Based on yahboomcar_multi/param/R2_ekf_robot1.yaml (odom0 /odom_raw, imu0 imu/data).
+ekf_filter_node:
+  ros__parameters:
+    frequency: 30.0
+    sensor_timeout: 0.2
+    two_d_mode: true
+    publish_tf: true
+    publish_acceleration: false
+    reset_on_time_jump: true
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_footprint
+    world_frame: odom
+
+    # [x y z, roll pitch yaw, vx vy vz, vroll vpitch vyaw, ax ay az]
+    odom0: /ackermann_steering_controller/odometry
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  true,  false,
+                   false, false, true,
+                   false, false, false]
+    odom0_queue_size: 10
+    odom0_differential: false
+    odom0_relative: false
+    odom0_twist_rejection_threshold: 3.0
+
+    imu0: /imu/data_raw
+    imu0_config: [false, false, false,
+                  false, false, false,
+                  false, false, false,
+                  false, false, true,
+                  true,  false, false]
+    imu0_queue_size: 10
+    imu0_differential: false
+    imu0_relative: true
+    imu0_remove_gravitational_acceleration: true
+    imu0_twist_rejection_threshold: 3.0
+    imu0_linear_acceleration_rejection_threshold: 5.0
+
+    use_control: false

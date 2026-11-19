@@ -537,4 +537,12 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
   </transmission-->
+  <!-- ros2_control (common platform). Off by default so display_R2 / bringup_R2 stay unchanged. -->
+  <xacro:arg name="use_ros2_control" default="false"/>
+  <xacro:arg name="use_mock_hardware" default="false"/>
+  <xacro:arg name="serial_device" default="/dev/myserial"/>
+  <xacro:if value="$(arg use_ros2_control)">
+    <xacro:include filename="$(find yahboomcar_description)/urdf/yahboomcar_R2.ros2_control.xacro"/>
+    <xacro:yahboomcar_r2_ros2_control name="YahboomR2System" use_mock_hardware="$(arg use_mock_hardware)" device="$(arg serial_device)"/>
+  </xacro:if>
 </robot>

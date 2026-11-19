@@ -1,0 +1,9 @@
+<library path="yahboom_r2_hardware">
+  <class name="yahboom_r2_hardware/R2SystemHardware"
+         type="yahboom_r2_hardware::R2SystemHardware"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Yahboom ROSMASTER R2 (Ackermann) over the STM32 expansion-board serial protocol (0xFF 0xFC / 0xFF 0xFB).
+    </description>
+  </class>
+</library>
