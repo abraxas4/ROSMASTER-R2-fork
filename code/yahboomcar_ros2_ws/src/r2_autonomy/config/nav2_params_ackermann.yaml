@@ -146,7 +146,7 @@ local_costmap:
         z_voxels: 16
         max_obstacle_height: 2.0
         mark_threshold: 0
-        observation_sources: scan
+        observation_sources: scan depth_camera
         scan:
           topic: /scan
           sensor_frame: laser
@@ -158,6 +158,18 @@ local_costmap:
           raytrace_min_range: 0.0
           obstacle_max_range: 3.0
           obstacle_min_range: 0.08
+        depth_camera:
+          topic: /camera/depth/points
+          sensor_frame: camera_link
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.05
+          clearing: True
+          marking: True
+          data_type: "PointCloud2"
+          raytrace_max_range: 2.5
+          raytrace_min_range: 0.0
+          obstacle_max_range: 2.0
+          obstacle_min_range: 0.30
       always_send_full_costmap: True
 
 global_costmap:
@@ -171,7 +183,12 @@ global_costmap:
       robot_radius: 0.16
       resolution: 0.05
       track_unknown_space: true
-      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      plugins: ["static_layer", "obstacle_layer", "keepout_filter", "inflation_layer"]
+      keepout_filter:
+        plugin: "nav2_costmap_2d::KeepoutFilter"
+        enabled: True
+        filter_info_topic: "/costmap_filter_info"
+        transform_tolerance: 0.5
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
@@ -328,16 +345,30 @@ collision_monitor:
     source_timeout: 5.0
     base_shift_correction: True
     stop_pub_timeout: 2.0
-    polygons: ["FootprintApproach"]
-    FootprintApproach:
+    polygons: ["ApproachZone", "StopZone"]
+    ApproachZone:
       type: "polygon"
       action_type: "approach"
-      footprint_topic: "/local_costmap/published_footprint"
-      time_before_collision: 1.5
-      simulation_time_step: 0.1
-      min_points: 6
+      max_points: 100
       visualize: True
       enabled: True
+      polygon_pub_topic: "approach_polygon"
+      points: "[[0.40, 0.25], [0.40, -0.15], [0.20, -0.20], [-0.10, -0.20], [-0.10, 0.20], [0.20, 0.20]]"
+      action:
+        approach_time_before_collision: 1.2
+        time_before_collision: 1.2
+        simulation_time_step: 0.1
+    StopZone:
+      type: "polygon"
+      action_type: "stop"
+      max_points: 100
+      visualize: True
+      enabled: True
+      polygon_pub_topic: "stop_polygon"
+      points: "[[0.20, 0.15], [0.20, -0.15], [-0.10, -0.15], [-0.10, 0.15]]"
+      action:
+        time_before_collision: 0.5
+        simulation_time_step: 0.1
     observation_sources: ["scan"]
     scan:
       type: "scan"

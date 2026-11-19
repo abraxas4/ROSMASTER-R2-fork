@@ -120,6 +120,20 @@ def generate_launch_description():
         }]
     )
     
+    # Path reverse recovery
+    path_reverse_recovery_node = Node(
+        package='r2_autonomy',
+        executable='path_reverse_recovery.py',
+        name='path_reverse_recovery',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'path_buffer_duration': 5.0,
+            'reverse_distance': 0.50,
+            'reverse_speed': 0.15
+        }]
+    )
+    
     # SLAM Toolbox (online async)
     slam_toolbox_node = Node(
         package='slam_toolbox',
@@ -158,6 +172,7 @@ def generate_launch_description():
     ld.add_action(odom_sanity_checker_node)
     ld.add_action(slip_detector_node)
     ld.add_action(battery_monitor_node)
+    ld.add_action(path_reverse_recovery_node)
     ld.add_action(slam_toolbox_node)
     ld.add_action(nav2_bringup_cmd)
     

@@ -17,6 +17,14 @@ find_package(std_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(action_msgs REQUIRED)
+
+# Generate action interfaces
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "action/PathReverseRecovery.action"
+  DEPENDENCIES std_msgs
+)
 
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
@@ -26,6 +34,10 @@ install(PROGRAMS
   scripts/slip_detector.py
   scripts/battery_monitor.py
   scripts/odom_sanity_checker.py
+  scripts/path_reverse_recovery.py
+  scripts/patrol_waypoint_generator.py
+  scripts/fake_scan_publisher.py
+  scripts/fake_odom_publisher.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

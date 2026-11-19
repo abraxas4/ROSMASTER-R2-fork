@@ -86,6 +86,20 @@ def generate_launch_description():
         }]
     )
     
+    # Patrol waypoint generator (auto-generate waypoints from map)
+    patrol_waypoint_node = Node(
+        package='r2_autonomy',
+        executable='patrol_waypoint_generator.py',
+        name='patrol_waypoint_generator',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'num_waypoints': 10,
+            'min_distance_between_waypoints': 1.5,
+            'loop_patrol': True
+        }]
+    )
+    
     # Nav2 bringup with localization
     nav2_bringup_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -110,6 +124,7 @@ def generate_launch_description():
     
     ld.add_action(slip_detector_node)
     ld.add_action(battery_monitor_node)
+    ld.add_action(patrol_waypoint_node)
     ld.add_action(nav2_bringup_cmd)
     
     return ld
