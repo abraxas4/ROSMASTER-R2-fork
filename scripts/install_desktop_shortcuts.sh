@@ -45,6 +45,12 @@ for entry in "$DESKTOP_SRC"/*.desktop; do
   echo "Installed: $DESKTOP_DST/$name"
 done
 
+AUTOSTART_DIR="${HOME}/.config/autostart"
+mkdir -p "$AUTOSTART_DIR"
+cp -f "$DESKTOP_SRC/R2_Battery.desktop" "$AUTOSTART_DIR/R2_Battery.desktop"
+chmod +x "$AUTOSTART_DIR/R2_Battery.desktop"
+
 echo ""
 echo "Desktop shortcuts:"
-echo "  매핑 시작 / 매핑 중지 / 순찰 시작 / 순찰 중지"
+echo "  매핑 시작 / 매핑 중지 / 순찰 시작 / 순찰 중지 / 배터리"
+echo "Battery OSD autostart: $AUTOSTART_DIR/R2_Battery.desktop"

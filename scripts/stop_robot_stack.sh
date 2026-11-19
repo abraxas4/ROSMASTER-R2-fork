@@ -41,6 +41,8 @@ pkill -x cartographer_occupancy_grid_node 2>/dev/null || true
 pkill -f 'cartographer_ros/cartographer_node' 2>/dev/null || true
 pkill -f 'cartographer_occupancy_grid_node' 2>/dev/null || true
 pkill -f 'scripts/mapping_speed_guard.py' 2>/dev/null || true
+pkill -f 'scripts/tf_to_odom.py' 2>/dev/null || true
+pkill -f 'scripts/slip_stop.py' 2>/dev/null || true
 pkill -f 'scripts/log_ackermann_calib.py' 2>/dev/null || true
 pkill -f 'nav2_bringup' 2>/dev/null || true
 pkill -f 'controller_server' 2>/dev/null || true
@@ -65,5 +67,7 @@ time.sleep(0.1)
 car.set_beep(0)
 PY
 
+rm -f /tmp/r2_serial_for_driver /tmp/r2_halt
+: > /tmp/r2_status.txt 2>/dev/null || true
 sleep 2
 echo "Done."

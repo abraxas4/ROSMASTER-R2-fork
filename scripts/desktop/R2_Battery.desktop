@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=R2 배터리
+Comment=Always-on battery percent
+Exec=bash /home/jetson/ROSMASTER-R2-fork/scripts/start_battery_osd.sh
+Icon=battery
+Terminal=false
+Categories=Utility;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=3

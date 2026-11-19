@@ -24,8 +24,13 @@ def generate_launch_description():
         cmd=['python3', os.path.join(script_dir, '..', 'mapping_speed_guard.py')],
         output='screen',
     )
+    slip_stop = ExecuteProcess(
+        cmd=['python3', os.path.join(script_dir, '..', 'slip_stop.py')],
+        output='screen',
+    )
 
     return LaunchDescription([
         laser_bringup_launch,
         speed_guard,
+        slip_stop,
     ])

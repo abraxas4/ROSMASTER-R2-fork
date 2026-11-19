@@ -3,11 +3,12 @@
 
 #public lib
 import sys
+import os
 import math
 import random
 import threading
 from math import pi
-from time import sleep
+from time import sleep, time
 from Rosmaster_Lib import Rosmaster
 
 #ros lib
@@ -15,8 +16,9 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String,Float32,Int32,Bool
 from geometry_msgs.msg import Twist
-from sensor_msgs.msg import Imu,MagneticField, JointState
+from sensor_msgs.msg import Imu,MagneticField, JointState, LaserScan
 from rclpy.clock import Clock
+from rclpy.qos import qos_profile_sensor_data
 
 #from dynamic_reconfigure.server import Server
 car_type_dic={
@@ -56,6 +58,7 @@ class yahboomcar_driver(Node):
 
 		#create subcriber
 		self.sub_cmd_vel = self.create_subscription(Twist,"cmd_vel",self.cmd_vel_callback,1)
+		self.sub_scan = self.create_subscription(LaserScan,"scan",self._on_scan, qos_profile_sensor_data)
 		self.sub_RGBLight = self.create_subscription(Int32,"RGBLight",self.RGBLightcallback,100)
 		self.sub_BUzzer = self.create_subscription(Bool,"Buzzer",self.Buzzercallback,100)
 
@@ -74,21 +77,86 @@ class yahboomcar_driver(Node):
 		self.edition = Float32()
 		self.edition.data = 1.0
 		self.car.create_receive_threading()
+		self._last_vy = 0.0
+		self._last_vy_t = time()
+		self._wheelbase = 0.25
+		self._vy_max = 0.045
+		self._vy_slew = 0.07
+		self._front_hits = 0
+		self._rear_hits = 0
+		self._halt_beeped = False
+
+	def _write_reason(self, text):
+		try:
+			with open('/tmp/r2_status.txt', 'w', encoding='utf-8') as fh:
+				fh.write((text or '') + '\n')
+		except Exception:
+			pass
+
+	def _on_scan(self, msg):
+		# Floor/mat noise is often <0.22m. Need several hits to count as a real obstacle.
+		near, far = 0.22, 0.42
+		front_half = math.radians(28.0)
+		rear_half = math.radians(40.0)
+		front = 0
+		rear = 0
+		a = float(msg.angle_min)
+		for r in msg.ranges:
+			aa = a
+			a += float(msg.angle_increment)
+			if r != r or r <= 0.0:
+				continue
+			if not (near < r < far):
+				continue
+			aa = (aa + math.pi) % (2 * math.pi) - math.pi
+			if abs(aa) <= front_half:
+				front += 1
+			if abs(abs(aa) - math.pi) <= rear_half:
+				rear += 1
+		self._front_hits = front
+		self._rear_hits = rear
+
 	#callback function
 	def cmd_vel_callback(self,msg):
-        # 小车运动控制，订阅者回调函数
-        # Car motion control, subscriber callback function
+        # R2: set_car_motion vy is steer in hardware units [-0.045, 0.045].
+        # Joystick already sends that on linear.y. Nav2 TEB sends yaw-rate on angular.z.
 		if not isinstance(msg, Twist): return
-        # 下发线速度和角速度
-        # Issue linear vel and angular vel
-		vx = msg.linear.x*1.0
-        #vy = msg.linear.y/1000.0*180.0/3.1416    #Radian system
-		vy = msg.linear.y*1.0
-		angular = msg.angular.z*1.0    # wait for change
-		self.car.set_car_motion(vx, vy, angular)
-		# self.car.set_car_motion(vx*1.8, vy, angular)
-		# self.get_logger().info("cmd_vel_callback: vx = {}, vy = {}, angular = {},".format(vx, vy, angular))
-        #print(self.nav_use_rotvel)
+		vx = msg.linear.x * 1.0
+		vy = msg.linear.y * 1.0
+		if abs(vy) < 0.001 and abs(msg.angular.z) > 0.02:
+			if abs(vx) < 0.04:
+				vy = 0.0
+			else:
+				delta = math.atan(self._wheelbase * msg.angular.z / vx)
+				vy = delta * 180.0 / math.pi / 1000.0
+		if vy > self._vy_max:
+			vy = self._vy_max
+		elif vy < -self._vy_max:
+			vy = -self._vy_max
+		now = time()
+		dt = max(0.001, now - self._last_vy_t)
+		step = self._vy_slew * dt
+		if vy > self._last_vy + step:
+			vy = self._last_vy + step
+		elif vy < self._last_vy - step:
+			vy = self._last_vy - step
+		self._last_vy = vy
+		self._last_vy_t = now
+		if os.path.exists('/tmp/r2_halt'):
+			self.car.set_car_motion(0.0, 0.0, 0.0)
+			if not self._halt_beeped:
+				self.car.set_beep(1)
+				self._halt_beeped = True
+			return
+		reason = ''
+		if vx > 0.02 and self._front_hits >= 4:
+			vx = 0.0
+			reason = '앞이 가까워 전진하지 않습니다.'
+		if vx < -0.02 and self._rear_hits >= 4:
+			vx = 0.0
+			reason = '뒤가 가까워 후진하지 않습니다.'
+		self._write_reason(reason)
+		self.car.set_car_motion(vx, vy, 0.0)
 	def RGBLightcallback(self,msg):
         # 流水灯控制，服务端回调函数 RGBLight control
 		if not isinstance(msg, Int32): return
@@ -103,6 +171,11 @@ class yahboomcar_driver(Node):
 
 	#pub data
 	def pub_data(self):
+		if os.path.exists('/tmp/r2_halt'):
+			self.car.set_car_motion(0.0, 0.0, 0.0)
+			if not self._halt_beeped:
+				self.car.set_beep(1)
+				self._halt_beeped = True
 		time_stamp = Clock().now()
 		imu = Imu()
 		twist = Twist()

@@ -195,19 +195,19 @@
 
 <section id="patrol">
   <h2>12. 순찰 연결</h2>
-  <p>맵은 Nav2가 읽는 격자(<code>pgm</code>/<code>yaml</code>)로 저장합니다. 위치 찾기는 AMCL입니다. 카메라는 없습니다.</p>
+  <p>기본은 다니면서 맵을 갱신합니다. 카메라는 없습니다.</p>
   <table>
     <tr><th>단계</th><th>내용</th><th>지금</th></tr>
-    <tr><td>1. 맵</td><td>Cartographer 격자</td><td><code>~/maps/cartographer/20260906_004700.yaml</code></td></tr>
-    <tr><td>2. 위치 찾기</td><td>저장된 맵 위에서 지금 라이다가 어디인지</td><td>AMCL. 출발은 매핑을 시작한 자리</td></tr>
-    <tr><td>3. 길 계획·따라가기</td><td>Nav2 TEB (장애물, 속도, 조향)</td><td><code>start_patrol.sh</code></td></tr>
-    <tr><td>4. 순찰 경로</td><td>지오펜스 안 빈칸 웨이포인트</td><td><code>geofence_patrol.py</code></td></tr>
+    <tr><td>1. 맵</td><td>저장된 pbstream을 이어서 그림</td><td>Cartographer. 끄면 yaml/pgm 저장</td></tr>
+    <tr><td>2. 위치 찾기</td><td>같은 프로그램이 맵과 자세를 같이 맡음</td><td>AMCL 없음 (<code>PATROL_UPDATE_MAP=1</code>)</td></tr>
+    <tr><td>3. 길 계획·따라가기</td><td>Nav2 TEB</td><td><code>navigation_launch.py</code></td></tr>
+    <tr><td>4. 순찰 경로</td><td>지오펜스 안 빈칸 웨이포인트</td><td>마지막 yaml 기준</td></tr>
   </table>
   <div class="ok">
     데스크톱 “R2 순찰 시작”. 켜기: <code>bash ~/ROSMASTER-R2-fork/scripts/start_patrol.sh</code>.
-    매핑 중지는 맵을 먼저 저장합니다.
+    고정맵만 쓰려면 <code>PATROL_UPDATE_MAP=0</code> (AMCL).
   </div>
-  <p>순찰을 켤 때 차는 매핑을 시작했던 자리에 두는 것이 맞습니다. AMCL 초기 자세는 맵 원점입니다.</p>
+  <p>차는 매핑을 시작했던 자리에 두고 켜세요. 오래 서 있는 사람은 벽으로 남을 수 있습니다.</p>
 </section>
 
 <footer>

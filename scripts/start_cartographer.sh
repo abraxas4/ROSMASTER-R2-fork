@@ -27,4 +27,7 @@ on_stop() {
 }
 trap on_stop EXIT INT TERM
 
+touch /tmp/r2_serial_for_driver
+sleep 0.4
+
 ros2 launch "$SCRIPT_DIR/launch/cartographer_managed.launch.py"

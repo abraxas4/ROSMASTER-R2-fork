@@ -2,9 +2,9 @@
 Version=1.0
 Type=Application
 Name=R2 순찰 중지
-Comment=Stop patrol, Nav2, localization
-Exec=gnome-terminal --title=R2 Patrol Stop -- bash -c "bash /home/jetson/ROSMASTER-R2-fork/scripts/stop_robot_stack.sh; echo; read -p 'Press Enter to close...' _; exec bash"
+Comment=Stop patrol and close the patrol terminal
+Exec=bash /home/jetson/ROSMASTER-R2-fork/scripts/stop_patrol.sh
 Icon=media-playback-stop
 Terminal=false
 Categories=Development;Robotics;
-StartupNotify=true
+StartupNotify=false
