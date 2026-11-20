@@ -27,6 +27,11 @@ class LidarAvoid(Node):
         self.run_time = p('run_time', 30.0).value
         self.out_dir = p('out_dir', os.path.expanduser('~/r2_runs')).value
         self.use_depth = p('use_depth', True).value
+        self.deadband = p('steer_deadband', 0.30).value
+        self.alpha = p('steer_alpha', 0.15).value
+        self.batt_low = p('battery_low_v', 10.5).value  # 3S ~20 %
+        self.w_f = 0.0
+        self.batt_low_since = None
         self.front = self.left = self.right = None
         self.depth_front = None
         self.state = 'FWD'
@@ -89,6 +94,18 @@ class LidarAvoid(Node):
         if self.front is None:
             self.pub.publish(cmd)
             return
+        try:
+            bv = float(open('/dev/shm/r2_battery_v').read())
+            if bv < self.batt_low:
+                self.batt_low_since = self.batt_low_since or now
+                if now - self.batt_low_since > 15:
+                    self.get_logger().warn(f'battery {bv:.1f} V < {self.batt_low} V (~20 %) -> stop')
+                    self.pub.publish(cmd)
+                    raise SystemExit
+            else:
+                self.batt_low_since = None
+        except (OSError, ValueError):
+            pass
         if now - self.t0 > self.run_time:
             self.pub.publish(cmd)
             raise SystemExit
@@ -109,12 +126,18 @@ class LidarAvoid(Node):
             self.state = 'FWD'
             cmd.linear.x = self.v
             bal = (self.left - self.right)
+            if abs(bal) < self.deadband:
+                bal = 0.0
+            else:
+                bal -= math.copysign(self.deadband, bal)
             w = 0.6 * bal
             if front < self.slow_d:
                 k = (self.slow_d - front) / (self.slow_d - self.stop_d)
                 w = side * self.w_max * max(0.5, k)
                 cmd.linear.x = self.v * 0.8
-            cmd.angular.z = max(-self.w_max, min(self.w_max, w))
+            w = max(-self.w_max, min(self.w_max, w))
+            self.w_f += self.alpha * (w - self.w_f)
+            cmd.angular.z = self.w_f
         self.pub.publish(cmd)
         self.logw.writerow([round(now - self.t0, 2), self.state, round(front, 2), round(self.left, 2),
                             round(self.right, 2), self.depth_front and round(self.depth_front, 2),

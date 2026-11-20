@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Scripted R2 mission: right turn ~90deg, straight 2 m, left turn ~90deg (to the door),
-then shuttle forward/back within a 2 m radius until patrol_time or low battery,
-then retrace the outbound route in reverse (backing up) to the start.
-Front lidar < stop_dist pauses forward motion. Odometry: /odom (EKF).
+then wander forward within a 2 m radius (steering back toward the centre at the edge)
+until patrol_time or low battery, then drive forward along the outbound route back to the start.
+Reversing is limited to max_reverse_time per manoeuvre (only when the front is blocked).
+Wheel slip: over a slip_window, if wheel odometry moved >= slip_min_dist but the
+Cartographer pose (map->base_link) moved < slip_ratio of it, the car stops and the run ends.
+Odometry: /odom (EKF).
 Battery: /dev/shm/r2_battery_v written by yahboom_r2_hardware.
 """
 import math, time, os, csv
@@ -39,9 +42,19 @@ class DoorPatrol(Node):
         self.batt_low = p('battery_low_v', 10.8).value
         self.stop_d = p('stop_dist', 0.30).value
         self.self_d = p('self_mask_dist', 0.18).value
+        self.max_rev = p('max_reverse_time', 3.0).value
+        self.slip_win = p('slip_window', 2.0).value
+        self.slip_min = p('slip_min_dist', 0.12).value
+        self.slip_ratio = p('slip_ratio', 0.5).value
+        self.wheel_topic = p('wheel_odom_topic', '/ackermann_steering_controller/odometry').value
         self.out_dir = p('out_dir', os.path.expanduser('~/r2_runs/door')).value
         os.makedirs(self.out_dir, exist_ok=True)
         self.pose = None
+        self.wheel = None
+        self.slip_hist = []
+        self.rev_until = 0.0
+        self.rev_sign = 1.0
+        self.blocked_since = None
         self.front = None
         self.left = self.right = 1.0
         self.map = None
@@ -58,6 +71,7 @@ class DoorPatrol(Node):
         self.t0 = time.time()
         self.pub = self.create_publisher(Twist, '/cmd_vel', 10)
         self.create_subscription(Odometry, '/odom', self.on_odom, 20)
+        self.create_subscription(Odometry, self.wheel_topic, self.on_wheel, 20)
         self.create_subscription(LaserScan, '/scan', self.on_scan, qos_profile_sensor_data)
         mq = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL, reliability=ReliabilityPolicy.RELIABLE)
         self.create_subscription(OccupancyGrid, '/map', lambda m: setattr(self, 'map', m), mq)
@@ -73,6 +87,32 @@ class DoorPatrol(Node):
     def on_odom(self, m):
         pp = m.pose.pose
         self.pose = (pp.position.x, pp.position.y, yaw_of(pp.orientation))
+
+    def on_wheel(self, m):
+        pp = m.pose.pose.position
+        self.wheel = (pp.x, pp.y)
+
+    def check_slip(self):
+        try:
+            t = self.tfb.lookup_transform('map', 'base_link', rclpy.time.Time())
+        except Exception:
+            return False
+        if self.wheel is None:
+            return False
+        now = time.time()
+        self.slip_hist.append((now, self.wheel, (t.transform.translation.x, t.transform.translation.y)))
+        while self.slip_hist and now - self.slip_hist[0][0] > self.slip_win:
+            self.slip_hist.pop(0)
+        if len(self.slip_hist) < 5 or now - self.slip_hist[0][0] < self.slip_win * 0.8:
+            return False
+        _, w0, m0 = self.slip_hist[0]
+        _, w1, m1 = self.slip_hist[-1]
+        dw = math.hypot(w1[0] - w0[0], w1[1] - w0[1])
+        dm = math.hypot(m1[0] - m0[0], m1[1] - m0[1])
+        if dw >= self.slip_min and dm < self.slip_ratio * dw:
+            self.get_logger().error(f'WHEEL SLIP: wheel {dw:.2f} m, actual {dm:.2f} m -> stop')
+            return True
+        return False
 
     def on_scan(self, m):
         fr, lf, rt = [], [], []
@@ -124,6 +164,11 @@ class DoorPatrol(Node):
         if self.pose is None or self.front is None:
             self.pub.publish(cmd)
             return
+        if self.state not in ('WAIT', 'DONE', 'SLIP') and self.check_slip():
+            self.set_state('SLIP')
+        if self.state == 'SLIP':
+            self.pub.publish(Twist())
+            raise SystemExit
         x, y, yaw = self.pose
         blocked = self.front < self.stop_d
         if self.state in ('TURN1', 'FWD', 'TURN2') and (not self.outbound or
@@ -137,7 +182,7 @@ class DoorPatrol(Node):
             target = self.turn1 if s == 'TURN1' else self.turn2
             done = abs(wrap(yaw - self.ref[2])) >= abs(target) - math.radians(5)
             if done:
-                self.set_state('FWD' if s == 'TURN1' else 'PATROL_OUT')
+                self.set_state('FWD' if s == 'TURN1' else 'PATROL')
                 if s == 'TURN2':
                     self.center = (x, y)
                     self.patrol_t0 = time.time()
@@ -150,36 +195,21 @@ class DoorPatrol(Node):
             elif not blocked:
                 cmd.linear.x = self.v
                 cmd.angular.z = 1.5 * wrap(self.ref[2] - yaw)  # hold heading
-        elif s == 'PATROL_OUT':
-            far = math.hypot(x - self.center[0], y - self.center[1]) > self.radius - 0.2
+        elif s == 'PATROL':
             end = self.low_batt or time.time() - self.patrol_t0 > self.patrol_time
-            if end or blocked or far or self.dist_from_ref() >= self.leg:
-                self.set_state('PATROL_BACK')
+            if end:
+                self.ret_path = list(reversed(self.outbound))
+                self.set_state('RETURN')
             else:
-                cmd.linear.x = self.v
-                bias = [0.0, 0.15, -0.15][self.leg_n % 3]
-                cmd.angular.z = max(-0.4, min(0.4, bias + 0.4 * (self.left - self.right)))
-        elif s == 'PATROL_BACK':
-            d = math.hypot(x - self.center[0], y - self.center[1])
-            if d < 0.15 or self.dist_from_ref() > self.leg + 0.5:
-                self.leg_n += 1
-                end = self.low_batt or time.time() - self.patrol_t0 > self.patrol_time
-                if end:
-                    self.ret_path = list(reversed(self.outbound))
-                    self.set_state('RETURN')
-                else:
-                    self.set_state('PATROL_OUT')
-            else:
-                cmd.linear.x, cmd.angular.z = self.reverse_to(self.center)
+                cmd.linear.x, cmd.angular.z = self.wander()
         elif s == 'RETURN':
-            while self.ret_path and math.hypot(x - self.ret_path[0][0], y - self.ret_path[0][1]) < 0.25 \
-                    and len(self.ret_path) > 1:
+            while len(self.ret_path) > 1 and math.hypot(x - self.ret_path[0][0], y - self.ret_path[0][1]) < 0.35:
                 self.ret_path.pop(0)
             goal = self.ret_path[0]
-            if len(self.ret_path) == 1 and math.hypot(x - goal[0], y - goal[1]) < 0.12:
+            if len(self.ret_path) == 1 and math.hypot(x - goal[0], y - goal[1]) < 0.2:
                 self.set_state('DONE')
             else:
-                cmd.linear.x, cmd.angular.z = self.reverse_to(goal)
+                cmd.linear.x, cmd.angular.z = self.drive_or_escape(self.pursue(goal))
         elif s == 'DONE':
             self.pub.publish(Twist())
             raise SystemExit
@@ -188,18 +218,42 @@ class DoorPatrol(Node):
                             round(yaw, 3), round(self.front, 2), self.batt, round(cmd.linear.x, 3),
                             round(cmd.angular.z, 3)])
 
-    def reverse_to(self, goal):
-        """Back up toward goal (pure pursuit in rear-facing frame)."""
+    def pursue(self, goal):
+        """Forward pure pursuit toward goal; returns desired yaw rate."""
         x, y, yaw = self.pose
-        ry = yaw + math.pi
         dx, dy = goal[0] - x, goal[1] - y
-        lx = math.cos(ry) * dx + math.sin(ry) * dy
-        ly = -math.sin(ry) * dx + math.cos(ry) * dy
+        lx = math.cos(yaw) * dx + math.sin(yaw) * dy
+        ly = -math.sin(yaw) * dx + math.cos(yaw) * dy
         L2 = max(lx * lx + ly * ly, 0.09)
-        kappa = 2.0 * ly / L2
-        v = self.v
-        w = max(-0.4, min(0.4, v * kappa))
-        return -v, w
+        if lx < 0:  # goal behind: full lock toward it
+            return math.copysign(0.4, ly if abs(ly) > 1e-3 else 1.0)
+        return max(-0.4, min(0.4, self.v * 2.0 * ly / L2))
+
+    def wander(self):
+        x, y, _ = self.pose
+        d = math.hypot(x - self.center[0], y - self.center[1])
+        if d > self.radius - 0.3:
+            w = self.pursue(self.center)
+        else:
+            w = max(-0.4, min(0.4, 0.4 * (self.left - self.right)))
+        return self.drive_or_escape(w)
+
+    def drive_or_escape(self, w):
+        """Forward with yaw rate w; if the front is blocked, back up (max max_reverse_time) swinging
+        the nose toward the freer side, then wait before reversing again."""
+        now = time.time()
+        if now < self.rev_until:
+            return -self.v, -self.rev_sign * 0.4
+        if self.front < self.stop_d:
+            if self.blocked_since is None or now - self.blocked_since > self.max_rev + 1.0:
+                self.blocked_since = now
+                self.rev_sign = 1.0 if self.left >= self.right else -1.0
+                self.rev_until = now + self.max_rev
+                return -self.v, -self.rev_sign * 0.4
+            return 0.0, 0.0
+        if self.front < 0.7:
+            w = (1.0 if self.left >= self.right else -1.0) * 0.4
+        return self.v, w
 
     def save(self):
         self.log.close()
