@@ -23,7 +23,8 @@ set_target_properties(yahboom_protocol PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(${PROJECT_NAME} SHARED
   src/r2_system.cpp
-  src/serial_port.cpp)
+  src/serial_port.cpp
+  src/serial_diag.cpp)
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)

@@ -20,7 +20,7 @@ flowchart TB
     subgraph Sensors["센서"]
         LIDAR["LiDAR<br/>/scan"]
         CAM["Depth Camera<br/>/camera/*"]
-        IMU["IMU<br/>/imu"]
+        IMU["IMU<br/>/imu/data_raw<br/>imu_link"]
         ODOM["Wheel Odom<br/>/ackermann_steering_controller/odometry"]
     end
     
@@ -284,7 +284,7 @@ minimum_turning_radius: 0.35  # 최소 회전 반경 (m)
    ros2 topic echo /scan --field header.frame_id
    ```
 
-2. **Depth 카메라 프레임**: `camera_link` 또는 `camera_depth_frame` 확인.
+2. **Depth 카메라 프레임**: `/camera/depth/points`의 `frame_id`는 `camera_depth_optical_frame`입니다.
 
 3. **최소 회전 반경 측정**: 로봇을 최대 조향각으로 회전시켜 실제 회전 반경 측정, `minimum_turning_radius` 조정.
 
@@ -296,7 +296,7 @@ minimum_turning_radius: 0.35  # 최소 회전 반경 (m)
    cat /dev/shm/r2_battery_v
    ```
 
-6. **ROS_DOMAIN_ID**: 환경변수 확인 (77).
+6. **ROS_DOMAIN_ID**: 환경변수 확인 (실기 기본값 28).
 
    ```bash
    echo $ROS_DOMAIN_ID
@@ -376,7 +376,7 @@ colcon test-result --verbose
 
 4. **explore_lite 설치**: 기본 apt 저장소에 없을 수 있음. 소스에서 빌드 필요 (INSTALL.md 참고).
 
-5. **Depth 카메라**: 로컬 코스트맵에 `/camera/depth/points` 추가됨. 토픽이 없으면 오류 없이 무시됨.
+5. **Depth 카메라**: 로컬 코스트맵에 `/camera/depth/points` (`sensor_frame`: `camera_depth_optical_frame`) 추가됨. 토픽이 없으면 오류 없이 무시됨.
 
 6. **경로 추적 후진**: 5초 이상 주행해야 충분한 경로 기록. 짧은 주행 후 막히면 직선 후진.
 

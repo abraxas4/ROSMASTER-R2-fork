@@ -9,7 +9,6 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
-  <buildtool_depend>rosidl_default_generators</buildtool_depend>
 
   <depend>rclcpp</depend>
   <depend>rclpy</depend>
@@ -35,13 +34,11 @@
   <depend>yahboom_r2_bringup</depend>
   <depend>yahboomcar_description</depend>
 
+  <exec_depend>r2_autonomy_msgs</exec_depend>
+
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
   <test_depend>ament_cmake_pytest</test_depend>
-
-  <exec_depend>rosidl_default_runtime</exec_depend>
-  
-  <member_of_group>rosidl_interface_packages</member_of_group>
 
   <export>
     <build_type>ament_cmake</build_type>

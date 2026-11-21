@@ -3,6 +3,9 @@
 Path-tracking reverse recovery for R2 robot.
 Records recent driven path and reverses along it when blocked.
 Alternates steering direction (left/right) after each recovery attempt.
+Pose source: odom topic (default /odom, EKF, odom frame) instead of a TF
+listener (/tf ~75 Hz in rclpy cost ~20% CPU at rest). Short-range path
+replay belongs in the continuous odom frame (REP-105).
 """
 import rclpy
 from rclpy.node import Node
@@ -11,8 +14,9 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from nav_msgs.msg import Odometry, Path
 from geometry_msgs.msg import Twist, PoseStamped
 from r2_autonomy_msgs.action import PathReverseRecovery
-import tf2_ros
-from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
+import time
 import math
 from collections import deque
 
@@ -29,6 +33,7 @@ class PathReverseRecoveryNode(Node):
         self.declare_parameter('map_frame', 'map')
         self.declare_parameter('base_frame', 'base_footprint')
         self.declare_parameter('path_sample_distance', 0.05)
+        self.declare_parameter('odom_topic', '/odom')
         
         self.path_buffer_duration = self.get_parameter('path_buffer_duration').value
         self.reverse_distance = self.get_parameter('reverse_distance').value
@@ -39,8 +44,11 @@ class PathReverseRecoveryNode(Node):
         self.base_frame = self.get_parameter('base_frame').value
         self.path_sample_distance = self.get_parameter('path_sample_distance').value
         
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        self.cb_group = ReentrantCallbackGroup()
+        self.cur = None  # (x, y, yaw) in odom frame
+        self.odom_frame = 'odom'
+        self.create_subscription(Odometry, self.get_parameter('odom_topic').value,
+                                 self.odom_cb, 10, callback_group=self.cb_group)
         
         self.recent_path = deque(maxlen=200)
         self.last_pose = None
@@ -55,7 +63,8 @@ class PathReverseRecoveryNode(Node):
             'path_reverse_recovery',
             execute_callback=self.execute_callback,
             goal_callback=self.goal_callback,
-            cancel_callback=self.cancel_callback
+            cancel_callback=self.cancel_callback,
+            callback_group=self.cb_group
         )
         
         self.timer = self.create_timer(0.1, self.record_path)
@@ -68,27 +77,20 @@ class PathReverseRecoveryNode(Node):
     def cancel_callback(self, goal_handle):
         return CancelResponse.ACCEPT
         
+    def odom_cb(self, msg):
+        p = msg.pose.pose
+        q = p.orientation
+        yaw = math.atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z))
+        self.cur = (p.position.x, p.position.y, yaw)
+        if msg.header.frame_id:
+            self.odom_frame = msg.header.frame_id
+
     def record_path(self):
         """Record recent poses for reverse tracking"""
-        try:
-            transform = self.tf_buffer.lookup_transform(
-                self.map_frame,
-                self.base_frame,
-                rclpy.time.Time(),
-                timeout=rclpy.duration.Duration(seconds=0.05)
-            )
-        except (LookupException, ConnectivityException, ExtrapolationException):
+        if self.cur is None:
             return
-            
-        current_x = transform.transform.translation.x
-        current_y = transform.transform.translation.y
+        current_x, current_y, current_yaw = self.cur
         current_time = self.get_clock().now()
-        
-        quat = transform.transform.rotation
-        current_yaw = math.atan2(
-            2.0 * (quat.w * quat.z + quat.x * quat.y),
-            1.0 - 2.0 * (quat.y * quat.y + quat.z * quat.z)
-        )
         
         if self.last_pose is not None:
             dx = current_x - self.last_pose[0]
@@ -109,7 +111,7 @@ class PathReverseRecoveryNode(Node):
             self.recent_path.append((current_x, current_y, current_yaw, current_time))
             self.last_pose = (current_x, current_y, current_yaw)
             
-    async def execute_callback(self, goal_handle):
+    def execute_callback(self, goal_handle):
         """Execute reverse recovery along recorded path"""
         self.get_logger().info('Starting path reverse recovery')
         
@@ -118,6 +120,7 @@ class PathReverseRecoveryNode(Node):
         
         if len(self.recent_path) < 2:
             self.get_logger().warn('Not enough path history for reverse recovery')
+            goal_handle.abort()
             result.success = False
             return result
             
@@ -125,11 +128,11 @@ class PathReverseRecoveryNode(Node):
         path_to_reverse.reverse()
         
         path_msg = Path()
-        path_msg.header.frame_id = self.map_frame
+        path_msg.header.frame_id = self.odom_frame
         path_msg.header.stamp = self.get_clock().now().to_msg()
         for x, y, yaw, _ in path_to_reverse:
             pose = PoseStamped()
-            pose.header.frame_id = self.map_frame
+            pose.header.frame_id = self.odom_frame
             pose.pose.position.x = x
             pose.pose.position.y = y
             pose.pose.orientation.z = math.sin(yaw / 2.0)
@@ -137,26 +140,20 @@ class PathReverseRecoveryNode(Node):
             path_msg.poses.append(pose)
         self.path_pub.publish(path_msg)
         
-        try:
-            start_transform = self.tf_buffer.lookup_transform(
-                self.map_frame,
-                self.base_frame,
-                rclpy.time.Time(),
-                timeout=rclpy.duration.Duration(seconds=0.1)
-            )
-            start_x = start_transform.transform.translation.x
-            start_y = start_transform.transform.translation.y
-        except (LookupException, ConnectivityException, ExtrapolationException) as e:
-            self.get_logger().error(f'TF lookup failed: {e}')
+        if self.cur is None:
+            self.get_logger().error('No odom pose yet')
+            goal_handle.abort()
             result.success = False
             return result
+        start_x, start_y, _ = self.cur
+        current_x, current_y = start_x, start_y
             
         self.get_logger().info(
             f'Reversing {self.reverse_distance}m along {len(path_to_reverse)} waypoints'
         )
         
         distance_traveled = 0.0
-        rate = self.create_rate(20)
+        period = 0.05  # 20 Hz
         
         while distance_traveled < self.reverse_distance:
             if goal_handle.is_cancel_requested:
@@ -165,18 +162,7 @@ class PathReverseRecoveryNode(Node):
                 result.success = False
                 return result
                 
-            try:
-                current_transform = self.tf_buffer.lookup_transform(
-                    self.map_frame,
-                    self.base_frame,
-                    rclpy.time.Time(),
-                    timeout=rclpy.duration.Duration(seconds=0.05)
-                )
-                current_x = current_transform.transform.translation.x
-                current_y = current_transform.transform.translation.y
-            except (LookupException, ConnectivityException, ExtrapolationException):
-                await rate.sleep()
-                continue
+            current_x, current_y, current_yaw = self.cur
                 
             dx = current_x - start_x
             dy = current_y - start_y
@@ -193,12 +179,6 @@ class PathReverseRecoveryNode(Node):
                 target_pose[1] - current_y,
                 target_pose[0] - current_x
             )
-            quat = current_transform.transform.rotation
-            current_yaw = math.atan2(
-                2.0 * (quat.w * quat.z + quat.x * quat.y),
-                1.0 - 2.0 * (quat.y * quat.y + quat.z * quat.z)
-            )
-            
             angle_error = angle_to_target - current_yaw
             angle_error = math.atan2(math.sin(angle_error), math.cos(angle_error))
             
@@ -209,7 +189,7 @@ class PathReverseRecoveryNode(Node):
             feedback.distance_traveled = distance_traveled
             goal_handle.publish_feedback(feedback)
             
-            await rate.sleep()
+            time.sleep(period)
             
         self.stop_robot()
         self.get_logger().info(f'Reversed {distance_traveled:.2f}m')
@@ -232,18 +212,7 @@ class PathReverseRecoveryNode(Node):
                 result.success = False
                 return result
                 
-            try:
-                current_transform = self.tf_buffer.lookup_transform(
-                    self.map_frame,
-                    self.base_frame,
-                    rclpy.time.Time(),
-                    timeout=rclpy.duration.Duration(seconds=0.05)
-                )
-                current_x = current_transform.transform.translation.x
-                current_y = current_transform.transform.translation.y
-            except (LookupException, ConnectivityException, ExtrapolationException):
-                await rate.sleep()
-                continue
+            current_x, current_y, current_yaw = self.cur
                 
             dx = current_x - start_x
             dy = current_y - start_y
@@ -258,7 +227,7 @@ class PathReverseRecoveryNode(Node):
             feedback.distance_traveled = self.reverse_distance + distance_traveled
             goal_handle.publish_feedback(feedback)
             
-            await rate.sleep()
+            time.sleep(period)
             
         self.stop_robot()
         self.get_logger().info('Path reverse recovery completed')
@@ -288,8 +257,10 @@ class PathReverseRecoveryNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = PathReverseRecoveryNode()
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     finally:

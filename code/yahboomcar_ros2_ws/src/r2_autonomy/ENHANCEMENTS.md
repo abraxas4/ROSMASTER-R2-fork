@@ -11,7 +11,7 @@ This document details the enhancements made to address specific requirements.
   1. Reverses along the recorded path (not straight back)
   2. Drives forward with steering bias (alternates LEFT/RIGHT)
 - Direction alternation tested with unit tests (`test/test_direction_alternation.py`)
-- Exposed as ROS 2 action (`action/PathReverseRecovery.action`)
+- Exposed as ROS 2 action (`r2_autonomy_msgs/action/PathReverseRecovery.action`)
 - Integrated into map_mode launch
 
 **Usage**:
@@ -69,7 +69,7 @@ ros2 action send_goal /path_reverse_recovery r2_autonomy_msgs/action/PathReverse
 
 **Implementation**: Updated `config/nav2_params_ackermann.yaml`
 
-- Added `/camera/depth/points` to voxel_layer
+- Added `/camera/depth/points` (`sensor_frame`: `camera_depth_optical_frame`) to voxel_layer
 - Lidar: 3.0m range (main obstacle detection)
 - Depth camera: 2.0m range (glass detection, 0.30-2.0m)
 - Lightweight: only local costmap, 2.5m raytrace max
@@ -97,7 +97,7 @@ ros2 launch r2_autonomy test_headless.launch.py
 ### Core Functionality
 - `scripts/path_reverse_recovery.py` (180 lines)
 - `scripts/patrol_waypoint_generator.py` (200 lines)
-- `action/PathReverseRecovery.action`
+- `../r2_autonomy_msgs/action/PathReverseRecovery.action`
 
 ### Configuration
 - `config/collision_monitor_params.yaml`
@@ -117,8 +117,8 @@ ros2 launch r2_autonomy test_headless.launch.py
 - `config/nav2_params_ackermann.yaml`: Added depth camera, collision monitor, keepout filter
 - `launch/map_mode.launch.py`: Added path_reverse_recovery node
 - `launch/patrol_mode.launch.py`: Added patrol_waypoint_generator node
-- `CMakeLists.txt`: Added action generation, new scripts
-- `package.xml`: Added rosidl dependencies
+- `CMakeLists.txt`: New scripts; action interfaces live in `r2_autonomy_msgs`
+- `package.xml`: Added `<exec_depend>r2_autonomy_msgs</exec_depend>`
 
 ## Verification Checklist
 

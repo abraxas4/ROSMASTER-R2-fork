@@ -1,11 +1,15 @@
 #include "yahboom_r2_hardware/r2_system.hpp"
 
+#include "yahboom_r2_hardware/serial_diag.hpp"
+
 #include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include <cmath>
 #include <map>
 #include <stdexcept>
+#include <unistd.h>
+#include <cstring>
 
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/logging.hpp"
@@ -149,27 +153,43 @@ std::vector<hardware_interface::CommandInterface> R2SystemHardware::export_comma
 
 CallbackReturn R2SystemHardware::on_configure(const rclcpp_lifecycle::State &)
 {
+  log_serial_owners("on_configure before open");
   std::string err;
   if (!port_.open(device_, baud_, err)) {
-    RCLCPP_ERROR(logger_, "Cannot open %s: %s (is Ackman_driver_R2 / rosmaster_main.py holding the port?)",
-      device_.c_str(), err.c_str());
+    log_serial_owners("on_configure open FAILED");
+    const std::string msg = "Cannot open " + device_ + ": " + err +
+      " flag=" + driver_flag_state() +
+      " owners=" + format_serial_owners(list_serial_owners(device_));
+    RCLCPP_ERROR(logger_, "%s (is Ackman_driver_R2 / rosmaster_main.py / battery_osd holding the port?)",
+      msg.c_str());
+    diag_file_log("yahboom_r2_hardware", "ERROR", msg);
+    diag_file_log("serial_owner", "ERROR", msg);
     return CallbackReturn::ERROR;
   }
   report_ = proto::Report{};
   enc_init_ = false;
+  log_serial_owners("on_configure open OK");
   RCLCPP_INFO(logger_, "Opened %s @ %d", device_.c_str(), baud_);
   return CallbackReturn::SUCCESS;
 }
 
 CallbackReturn R2SystemHardware::on_cleanup(const rclcpp_lifecycle::State &)
 {
+  log_serial_owners("on_cleanup before close");
   port_.close();
+  log_serial_owners("on_cleanup after close");
   return CallbackReturn::SUCCESS;
 }
 
 CallbackReturn R2SystemHardware::on_activate(const rclcpp_lifecycle::State &)
 {
-  if (!port_.is_open()) {return CallbackReturn::ERROR;}
+  log_serial_owners("on_activate");
+  if (!port_.is_open()) {
+    const std::string msg = "on_activate but port is closed device=" + device_;
+    RCLCPP_ERROR(logger_, "%s", msg.c_str());
+    diag_file_log("yahboom_r2_hardware", "ERROR", msg);
+    return CallbackReturn::ERROR;
+  }
   if (set_car_type_on_activate_) {
     // Same as Ackman_driver_R2.py: car.set_car_type(5). Writes MCU flash.
     port_.write_all(proto::build_set_car_type(proto::CAR_TYPE_R2));
@@ -190,6 +210,8 @@ CallbackReturn R2SystemHardware::on_activate(const rclcpp_lifecycle::State &)
 
 CallbackReturn R2SystemHardware::on_deactivate(const rclcpp_lifecycle::State &)
 {
+  log_serial_owners("on_deactivate");
+  maybe_log_io_stats(true);
   send_stop();
   port_.write_all(proto::build_reset_state());  // Rosmaster_Lib.reset_car_state()
   return CallbackReturn::SUCCESS;
@@ -210,7 +232,13 @@ hardware_interface::return_type R2SystemHardware::read(const rclcpp::Time &, con
   for (int i = 0; i < 8; ++i) {
     const long n = port_.read_some(buf, sizeof(buf));
     if (n < 0) {
-      RCLCPP_ERROR(logger_, "Serial read error on %s", device_.c_str());
+      ++read_errors_;
+      const std::string msg = "Serial read error on " + device_ +
+        " errno=" + std::to_string(port_.last_errno()) + " " +
+        (port_.last_errno() ? std::strerror(port_.last_errno()) : "") +
+        " owners=" + format_serial_owners(list_serial_owners(device_));
+      RCLCPP_ERROR(logger_, "%s", msg.c_str());
+      maybe_log_io_stats(true);
       return hardware_interface::return_type::ERROR;
     }
     if (n == 0) {break;}
@@ -220,11 +248,14 @@ hardware_interface::return_type R2SystemHardware::read(const rclcpp::Time &, con
   if (frames > 0) {
     last_rx_ = now;
   } else if ((now - last_rx_).seconds() > rx_timeout_s_) {
+    ++timeout_events_;
     RCLCPP_ERROR(logger_, "No MCU report for %.0f ms (auto report off or cable unplugged)",
       (now - last_rx_).seconds() * 1000.0);
+    maybe_log_io_stats(true);
     return hardware_interface::return_type::ERROR;
   }
   update_states_from_report(period.seconds());
+  maybe_log_io_stats(false);
   return hardware_interface::return_type::OK;
 }
 
@@ -348,7 +379,13 @@ hardware_interface::return_type R2SystemHardware::write(const rclcpp::Time &, co
   // keepalive every command_period; on change at most every 5 ms (13-byte frame on 115200 baud)
   if (since >= command_period_s_ || (changed && since >= 0.005)) {
     if (!port_.write_all(proto::build_motion(proto::CAR_TYPE_R2, vx, 0.0, wz))) {
-      RCLCPP_ERROR(logger_, "Serial write failed");
+      ++write_errors_;
+      const std::string msg = std::string("Serial write failed errno=") +
+        std::to_string(port_.last_errno()) + " " +
+        (port_.last_errno() ? std::strerror(port_.last_errno()) : "") +
+        " owners=" + format_serial_owners(list_serial_owners(device_));
+      RCLCPP_ERROR(logger_, "%s", msg.c_str());
+      maybe_log_io_stats(true);
       return hardware_interface::return_type::ERROR;
     }
     last_vx_cmd_ = vx;
@@ -356,6 +393,59 @@ hardware_interface::return_type R2SystemHardware::write(const rclcpp::Time &, co
     last_tx_ = now;
   }
   return hardware_interface::return_type::OK;
+}
+
+void R2SystemHardware::log_serial_owners(const char * when)
+{
+  const int self = ::getpid();
+  const auto owners = list_serial_owners(device_);
+  const std::string others = format_other_owners(owners, self);
+  const std::string msg = std::string(when) + " device=" + device_ +
+    " self_pid=" + std::to_string(self) +
+    " flag=" + driver_flag_state() +
+    " (plugin does not create/remove " + std::string("/tmp/r2_serial_for_driver") + ")" +
+    " owners=" + format_serial_owners(owners) +
+    " others=" + others;
+  diag_file_log("yahboom_r2_hardware", others == "none" ? "INFO" : "WARN", msg);
+  diag_file_log("serial_owner", others == "none" ? "INFO" : "WARN", msg);
+  if (others != "none") {
+    RCLCPP_WARN(logger_, "Serial %s also held by other process(es): %s (%s)",
+      device_.c_str(), others.c_str(), when);
+  } else {
+    RCLCPP_INFO(logger_, "%s", msg.c_str());
+  }
+}
+
+void R2SystemHardware::maybe_log_io_stats(bool force)
+{
+  const auto now = steady_.now();
+  const bool due = force ||
+    (last_io_diag_.nanoseconds() == 0) ||
+    ((now - last_io_diag_).seconds() >= 1.0);
+  if (!due) {return;}
+  const size_t cs = parser_.checksum_errors();
+  const size_t hd = parser_.header_errors();
+  const bool changed =
+    cs != last_logged_checksum_ ||
+    hd != last_logged_header_ ||
+    read_errors_ != last_logged_read_errors_ ||
+    write_errors_ != last_logged_write_errors_ ||
+    timeout_events_ != last_logged_timeouts_;
+  if (!changed && !force) {return;}
+  last_io_diag_ = now;
+  const std::string msg =
+    "serial io checksum_err=" + std::to_string(cs) +
+    " header_err=" + std::to_string(hd) +
+    " read_err=" + std::to_string(read_errors_) +
+    " write_err=" + std::to_string(write_errors_) +
+    " rx_timeout=" + std::to_string(timeout_events_) +
+    " flag=" + driver_flag_state();
+  diag_file_log("yahboom_r2_hardware", changed ? "WARN" : "INFO", msg);
+  last_logged_checksum_ = cs;
+  last_logged_header_ = hd;
+  last_logged_read_errors_ = read_errors_;
+  last_logged_write_errors_ = write_errors_;
+  last_logged_timeouts_ = timeout_events_;
 }
 
 }  // namespace yahboom_r2_hardware

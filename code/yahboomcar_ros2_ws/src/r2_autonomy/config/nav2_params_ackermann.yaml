@@ -160,7 +160,7 @@ local_costmap:
           obstacle_min_range: 0.08
         depth_camera:
           topic: /camera/depth/points
-          sensor_frame: camera_link
+          sensor_frame: camera_depth_optical_frame
           max_obstacle_height: 2.0
           min_obstacle_height: 0.05
           clearing: True

@@ -13,7 +13,7 @@
 
 **Implementation**:
 - `scripts/path_reverse_recovery.py` (180 lines)
-- `action/PathReverseRecovery.action`
+- `../r2_autonomy_msgs/action/PathReverseRecovery.action`
 - Records recent path (5s buffer, 0.05m sampling, max 200 poses)
 - Reverses ALONG driven path (finds nearest path point, tracks it)
 - Alternates steering direction on each recovery attempt
@@ -149,7 +149,7 @@ gimp keepout_mask.pgm
 ```yaml
 depth_camera:
   topic: /camera/depth/points
-  sensor_frame: camera_link
+  sensor_frame: camera_depth_optical_frame
   data_type: "PointCloud2"
   obstacle_max_range: 2.0  # Lighter than lidar (3.0m)
   obstacle_min_range: 0.30  # Avoids camera mount
@@ -275,7 +275,7 @@ depth_camera:
 - [ ] Test basic bringup: `ros2 launch r2_autonomy test_headless.launch.py`
 
 ### Verification on Real Robot
-- [ ] Check ROS_DOMAIN_ID=77
+- [ ] Check ROS_DOMAIN_ID=28
 - [ ] Verify `/scan` frame_id (assumed `laser`)
 - [ ] Verify TF tree completeness
 - [ ] Test map mode: `ros2 launch r2_autonomy map_mode.launch.py`
@@ -291,8 +291,8 @@ depth_camera:
 
 1. **No Gazebo Simulation**: Infrastructure provided (fake sensors), but full Gazebo URDF/world not included
 2. **Keepout Mask Empty**: User must draw zones in GIMP
-3. **Depth Camera Topic**: Assumed `/camera/depth/points`, verify on real robot
-4. **Frame Names**: Assumed `laser`, `camera_link` - verify actual names
+3. **Depth Camera Topic**: Confirmed on robot: `/camera/depth/points` (PointCloud2)
+4. **Frame Names**: Confirmed on robot: `/scan` frame `laser`; `/camera/depth/points` frame `camera_depth_optical_frame`; IMU `/imu/data_raw` frame `imu_link`
 5. **SLAM Required**: Slip detection needs TF map→base (from SLAM or AMCL)
 
 ---

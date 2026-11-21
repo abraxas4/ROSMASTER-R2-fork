@@ -65,7 +65,7 @@ def generate_launch_description():
             'slip_duration_limit': 3.0,
             'check_rate': 10.0,
             'odom_topic': '/odom',
-            'wheel_odom_topic': '/ackermann_steering_controller/odometry'
+            'wheel_odom_topic': '/odom'
         }]
     )
     

@@ -1,166 +1,109 @@
 #!/usr/bin/env python3
 """
 Wheel slip detector for R2 robot.
-Compares wheel odometry motion with actual motion from SLAM/scan matching.
-Uses TF map->base_footprint or SLAM pose as ground truth (independent of wheel encoders).
-Publishes slip status and triggers emergency stop if slipping persists for 3+ seconds.
+Compares wheel-reported motion with scan-matched motion from slam_toolbox (/pose).
+No TF listener: /tf (~75 Hz) in rclpy cost ~40% CPU at rest.
+- Wheel motion: integrated from odom twist (default /odom, EKF 30 Hz).
+- Actual motion: displacement between consecutive /pose messages (map frame,
+  published only after scan match, so it is independent of wheel encoders).
+Publishes slip status; emergency stop if slipping persists for slip_duration_limit.
 """
+import math
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Twist, TransformStamped
+from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
 from std_msgs.msg import Bool
-import tf2_ros
-from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
-import math
+
+
+def yaw_of(q):
+    return math.atan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y * q.y + q.z * q.z))
 
 
 class SlipDetector(Node):
     def __init__(self):
         super().__init__('slip_detector')
-        
         self.declare_parameter('slip_threshold_linear', 0.10)
         self.declare_parameter('slip_threshold_angular', 0.15)
         self.declare_parameter('slip_duration_limit', 3.0)
-        self.declare_parameter('check_rate', 10.0)
-        self.declare_parameter('wheel_odom_topic', '/ackermann_steering_controller/odometry')
-        self.declare_parameter('map_frame', 'map')
-        self.declare_parameter('base_frame', 'base_footprint')
-        
-        self.slip_threshold_linear = self.get_parameter('slip_threshold_linear').value
-        self.slip_threshold_angular = self.get_parameter('slip_threshold_angular').value
-        self.slip_duration_limit = self.get_parameter('slip_duration_limit').value
-        self.check_rate = self.get_parameter('check_rate').value
-        self.map_frame = self.get_parameter('map_frame').value
-        self.base_frame = self.get_parameter('base_frame').value
-        
-        self.wheel_odom = None
-        self.last_map_pose = None
-        self.last_map_time = None
+        self.declare_parameter('check_rate', 10.0)  # kept for compatibility (unused)
+        self.declare_parameter('wheel_odom_topic', '/odom')
+        self.declare_parameter('pose_topic', '/pose')
+        self.declare_parameter('max_pose_gap', 5.0)
+
+        self.thr_lin = self.get_parameter('slip_threshold_linear').value
+        self.thr_ang = self.get_parameter('slip_threshold_angular').value
+        self.dur_limit = self.get_parameter('slip_duration_limit').value
+        self.max_gap = self.get_parameter('max_pose_gap').value
+
+        self.last_odom_t = None
+        self.wheel_dist = 0.0   # integrated |v| since last pose
+        self.wheel_ang = 0.0    # integrated |w| since last pose
+        self.last_pose = None   # (x, y, yaw, t)
         self.is_slipping = False
-        self.slip_start_time = None
-        
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
-        
-        qos = QoSProfile(
-            reliability=ReliabilityPolicy.RELIABLE,
-            history=HistoryPolicy.KEEP_LAST,
-            depth=10
-        )
-        
-        self.wheel_odom_sub = self.create_subscription(
-            Odometry,
-            self.get_parameter('wheel_odom_topic').value,
-            self.wheel_odom_callback,
-            qos
-        )
-        
+        self.slip_start = None
+
+        self.create_subscription(Odometry, self.get_parameter('wheel_odom_topic').value,
+                                 self.odom_cb, 10)
+        self.create_subscription(PoseWithCovarianceStamped, self.get_parameter('pose_topic').value,
+                                 self.pose_cb, 10)
         self.slip_pub = self.create_publisher(Bool, 'slip_detected', 10)
-        self.emergency_stop_pub = self.create_publisher(Twist, '/cmd_vel', 10)
-        
-        self.timer = self.create_timer(1.0 / self.check_rate, self.check_slip)
-        
-        self.get_logger().info(
-            f'Slip detector initialized. Comparing wheel odom vs TF {self.map_frame}->{self.base_frame}'
-        )
-        
-    def wheel_odom_callback(self, msg):
-        self.wheel_odom = msg
-        
-    def check_slip(self):
-        if self.wheel_odom is None:
-            return
-            
-        try:
-            transform = self.tf_buffer.lookup_transform(
-                self.map_frame,
-                self.base_frame,
-                rclpy.time.Time(),
-                timeout=rclpy.duration.Duration(seconds=0.1)
-            )
-        except (LookupException, ConnectivityException, ExtrapolationException) as e:
-            self.get_logger().debug(
-                f'TF lookup failed: {e}. Slip detection inactive.',
-                throttle_duration_sec=5.0
-            )
-            return
-            
-        current_time = self.get_clock().now()
-        current_x = transform.transform.translation.x
-        current_y = transform.transform.translation.y
-        
-        quat = transform.transform.rotation
-        current_yaw = math.atan2(
-            2.0 * (quat.w * quat.z + quat.x * quat.y),
-            1.0 - 2.0 * (quat.y * quat.y + quat.z * quat.z)
-        )
-        
-        if self.last_map_pose is not None:
-            dt = (current_time - self.last_map_time).nanoseconds / 1e9
-            if dt > 0.01 and dt < 1.0:
-                dx = current_x - self.last_map_pose[0]
-                dy = current_y - self.last_map_pose[1]
-                dyaw = current_yaw - self.last_map_pose[2]
-                
-                dyaw = math.atan2(math.sin(dyaw), math.cos(dyaw))
-                
-                actual_vx = math.sqrt(dx*dx + dy*dy) / dt
-                actual_wz = abs(dyaw) / dt
-                
-                wheel_vx = abs(self.wheel_odom.twist.twist.linear.x)
-                wheel_wz = abs(self.wheel_odom.twist.twist.angular.z)
-                
-                if wheel_vx < 0.01 and wheel_wz < 0.01:
-                    self.reset_slip_state()
+        self.stop_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.get_logger().info('Slip detector: wheel odom vs slam /pose (no TF listener)')
+
+    def odom_cb(self, msg):
+        t = self.get_clock().now().nanoseconds / 1e9
+        if self.last_odom_t is not None:
+            dt = t - self.last_odom_t
+            if 0.0 < dt < 0.5:
+                self.wheel_dist += abs(msg.twist.twist.linear.x) * dt
+                self.wheel_ang += abs(msg.twist.twist.angular.z) * dt
+        self.last_odom_t = t
+
+    def pose_cb(self, msg):
+        t = self.get_clock().now().nanoseconds / 1e9
+        p = msg.pose.pose
+        x, y, yaw = p.position.x, p.position.y, yaw_of(p.orientation)
+        if self.last_pose is not None:
+            dt = t - self.last_pose[3]
+            if 0.05 < dt < self.max_gap:
+                actual_v = math.hypot(x - self.last_pose[0], y - self.last_pose[1]) / dt
+                dyaw = math.atan2(math.sin(yaw - self.last_pose[2]), math.cos(yaw - self.last_pose[2]))
+                actual_w = abs(dyaw) / dt
+                wheel_v = self.wheel_dist / dt
+                wheel_w = self.wheel_ang / dt
+                if wheel_v < 0.01 and wheel_w < 0.01:
+                    self.reset()
+                elif abs(wheel_v - actual_v) > self.thr_lin or abs(wheel_w - actual_w) > self.thr_ang:
+                    now = self.get_clock().now()
+                    if not self.is_slipping:
+                        self.is_slipping = True
+                        self.slip_start = now
+                        self.get_logger().warn(
+                            f'Slip detected! wheel v {wheel_v:.3f} vs actual {actual_v:.3f}, '
+                            f'wheel w {wheel_w:.3f} vs actual {actual_w:.3f}')
+                    elif (now - self.slip_start).nanoseconds / 1e9 >= self.dur_limit:
+                        self.get_logger().error('Slip persisted. Emergency stop!')
+                        self.emergency_stop()
                 else:
-                    linear_diff = abs(wheel_vx - actual_vx)
-                    angular_diff = abs(wheel_wz - actual_wz)
-                    
-                    is_slipping_now = (
-                        linear_diff > self.slip_threshold_linear or 
-                        angular_diff > self.slip_threshold_angular
-                    )
-                    
-                    if is_slipping_now:
-                        if not self.is_slipping:
-                            self.is_slipping = True
-                            self.slip_start_time = current_time
-                            self.get_logger().warn(
-                                f'Slip detected! Wheel vx: {wheel_vx:.3f}, Actual vx: {actual_vx:.3f}, '
-                                f'Wheel wz: {wheel_wz:.3f}, Actual wz: {actual_wz:.3f}'
-                            )
-                        else:
-                            elapsed = (current_time - self.slip_start_time).nanoseconds / 1e9
-                            if elapsed >= self.slip_duration_limit:
-                                self.get_logger().error(
-                                    f'Slip persisted for {elapsed:.1f}s. Emergency stop!'
-                                )
-                                self.emergency_stop()
-                    else:
-                        self.reset_slip_state()
-                        
-        self.last_map_pose = (current_x, current_y, current_yaw)
-        self.last_map_time = current_time
-            
-        slip_msg = Bool()
-        slip_msg.data = self.is_slipping
-        self.slip_pub.publish(slip_msg)
-        
-    def reset_slip_state(self):
+                    self.reset()
+            else:
+                self.reset()
+        self.last_pose = (x, y, yaw, t)
+        self.wheel_dist = 0.0
+        self.wheel_ang = 0.0
+        self.slip_pub.publish(Bool(data=self.is_slipping))
+
+    def reset(self):
         if self.is_slipping:
             self.get_logger().info('Slip resolved')
         self.is_slipping = False
-        self.slip_start_time = None
-        
+        self.slip_start = None
+
     def emergency_stop(self):
-        stop_msg = Twist()
-        stop_msg.linear.x = 0.0
-        stop_msg.angular.z = 0.0
         for _ in range(5):
-            self.emergency_stop_pub.publish(stop_msg)
-            
+            self.stop_pub.publish(Twist())
+
 
 def main(args=None):
     rclpy.init(args=args)
