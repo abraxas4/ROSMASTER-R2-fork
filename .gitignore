@@ -11,3 +11,6 @@ code/yahboomcar_ros2_ws/log/
 
 # Restored at runtime from .part.* chunks (see large_files.manifest)
 code/yahboomcar_ros2_ws/src/yahboomcar_slam/params/ORBvoc.txt
+
+# Built from source on the robot; do not vendor (see r2_autonomy/INSTALL.md)
+code/yahboomcar_ros2_ws/src/m-explore-ros2/

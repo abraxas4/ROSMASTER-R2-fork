@@ -1,0 +1,37 @@
+# rosbag2 QoS overrides. Lidar and camera streams are typically BEST_EFFORT;
+# the default RELIABLE subscription would record 0 /scan messages.
+/scan:
+  reliability: best_effort
+  durability: volatile
+  history: keep_last
+  depth: 10
+/camera/color/image_raw:
+  reliability: best_effort
+  durability: volatile
+  history: keep_last
+  depth: 10
+/camera/color/image_raw/compressed:
+  reliability: best_effort
+  durability: volatile
+  history: keep_last
+  depth: 10
+/camera/depth/image_raw:
+  reliability: best_effort
+  durability: volatile
+  history: keep_last
+  depth: 10
+/camera/depth/image_raw/compressed:
+  reliability: best_effort
+  durability: volatile
+  history: keep_last
+  depth: 10
+/camera/depth/image_raw/compressedDepth:
+  reliability: best_effort
+  durability: volatile
+  history: keep_last
+  depth: 10
+/camera/depth/points:
+  reliability: best_effort
+  durability: volatile
+  history: keep_last
+  depth: 5

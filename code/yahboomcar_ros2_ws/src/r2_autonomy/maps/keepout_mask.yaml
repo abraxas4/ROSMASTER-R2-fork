@@ -1,0 +1,13 @@
+# Keepout zone mask for R2 robot
+# This is a sample empty mask. To add keepout zones:
+# 1. Load this image in GIMP or any image editor
+# 2. Draw white (255) rectangles/polygons where the robot should NOT go
+# 3. Save as keepout_mask.pgm
+# 4. The costmap filter will mark these areas as LETHAL_OBSTACLE
+
+image: keepout_mask.pgm
+resolution: 0.05
+origin: [0.0, 0.0, 0.0]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.196

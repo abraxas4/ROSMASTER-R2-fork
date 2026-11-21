@@ -1,0 +1,28 @@
+diff --git a/explore/include/explore/costmap_client.h b/explore/include/explore/costmap_client.h
+index 42b065e..c144edb 100644
+--- a/explore/include/explore/costmap_client.h
++++ b/explore/include/explore/costmap_client.h
+@@ -38,8 +38,8 @@
+ #ifndef COSTMAP_CLIENT_
+ #define COSTMAP_CLIENT_
+ 
+-#include <tf2_ros/buffer.hpp>
+-#include <tf2_ros/transform_listener.hpp>
++#include <tf2_ros/buffer.h>
++#include <tf2_ros/transform_listener.h>
+ 
+ #include <geometry_msgs/msg/pose.hpp>
+ #include <geometry_msgs/msg/pose_stamped.hpp>
+diff --git a/explore/include/explore/explore.h b/explore/include/explore/explore.h
+index 8799783..2c3df3a 100644
+--- a/explore/include/explore/explore.h
++++ b/explore/include/explore/explore.h
+@@ -41,7 +41,7 @@
+ #include <explore/costmap_client.h>
+ #include <explore/frontier_search.h>
+ #include <geometry_msgs/msg/pose_stamped.hpp>
+-#include <tf2_ros/transform_listener.hpp>
++#include <tf2_ros/transform_listener.h>
+ 
+ #include <chrono>
+ #include <cmath>

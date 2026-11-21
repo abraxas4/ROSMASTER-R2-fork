@@ -81,11 +81,23 @@ size_t Parser::feed(const uint8_t * data, size_t n, Report & out)
         if (b == HEAD) {st_ = St::HEAD2;}
         break;
       case St::HEAD2:
-        st_ = (b == DEVICE_ID_REPORT) ? St::LEN : (b == HEAD ? St::HEAD2 : St::HEAD1);
+        if (b == DEVICE_ID_REPORT) {
+          st_ = St::LEN;
+        } else if (b == HEAD) {
+          st_ = St::HEAD2;
+        } else {
+          ++header_errors_;
+          st_ = St::HEAD1;
+        }
         break;
       case St::LEN:
         len_ = b;
-        st_ = (len_ >= 3 && len_ < 64) ? St::TYPE : St::HEAD1;
+        if (len_ >= 3 && len_ < 64) {
+          st_ = St::TYPE;
+        } else {
+          ++header_errors_;
+          st_ = St::HEAD1;
+        }
         break;
       case St::TYPE:
         type_ = b;

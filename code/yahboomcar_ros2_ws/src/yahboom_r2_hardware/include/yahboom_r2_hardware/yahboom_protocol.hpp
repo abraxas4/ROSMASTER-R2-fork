@@ -85,6 +85,7 @@ public:
   /// Feed bytes. Returns number of valid frames decoded. Results are merged into `out`.
   size_t feed(const uint8_t * data, size_t n, Report & out);
   size_t checksum_errors() const {return checksum_errors_;}
+  size_t header_errors() const {return header_errors_;}
 
 private:
   void decode(uint8_t type, const std::vector<uint8_t> & data, Report & out);
@@ -93,6 +94,7 @@ private:
   uint8_t type_{0};
   std::vector<uint8_t> buf_;
   size_t checksum_errors_{0};
+  size_t header_errors_{0};
 };
 
 }  // namespace proto
