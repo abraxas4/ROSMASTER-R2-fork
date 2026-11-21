@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>r2_autonomy</name>
+  <version>1.0.0</version>
+  <description>Autonomous navigation layer for Yahboom ROSMASTER R2 with Ackermann steering</description>
+  <maintainer email="moonjune.kim@gmail.com">abraxas4</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rclpy</depend>
+  <depend>action_msgs</depend>
+  <depend>nav2_bringup</depend>
+  <depend>nav2_msgs</depend>
+  <depend>nav2_bt_navigator</depend>
+  <depend>nav2_smac_planner</depend>
+  <depend>nav2_regulated_pure_pursuit_controller</depend>
+  <depend>nav2_mppi_controller</depend>
+  <depend>nav2_costmap_2d</depend>
+  <depend>nav2_behaviors</depend>
+  <depend>slam_toolbox</depend>
+  <depend>robot_localization</depend>
+  <depend>cartographer_ros</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>yahboom_r2_bringup</depend>
+  <depend>yahboomcar_description</depend>
+
+  <exec_depend>r2_autonomy_msgs</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

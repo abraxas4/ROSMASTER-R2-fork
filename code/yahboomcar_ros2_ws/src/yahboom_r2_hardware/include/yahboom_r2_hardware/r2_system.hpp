@@ -17,6 +17,7 @@
 #include "rclcpp_lifecycle/state.hpp"
 
 #include "yahboom_r2_hardware/serial_port.hpp"
+#include "yahboom_r2_hardware/serial_diag.hpp"
 #include "yahboom_r2_hardware/yahboom_protocol.hpp"
 
 namespace yahboom_r2_hardware
@@ -53,6 +54,8 @@ private:
 
   void send_stop();
   void update_states_from_report(double dt);
+  void log_serial_owners(const char * when);
+  void maybe_log_io_stats(bool force = false);
 
   rclcpp::Logger logger_{rclcpp::get_logger("R2SystemHardware")};
   rclcpp::Clock steady_{RCL_STEADY_TIME};
@@ -101,6 +104,16 @@ private:
   bool enc_init_{false};
   std::array<int32_t, 4> enc_prev_{};
   double battery_v_{0.0};
+
+  size_t read_errors_{0};
+  size_t write_errors_{0};
+  size_t timeout_events_{0};
+  size_t last_logged_checksum_{0};
+  size_t last_logged_header_{0};
+  size_t last_logged_read_errors_{0};
+  size_t last_logged_write_errors_{0};
+  size_t last_logged_timeouts_{0};
+  rclcpp::Time last_io_diag_{0, 0, RCL_STEADY_TIME};
 };
 
 }  // namespace yahboom_r2_hardware

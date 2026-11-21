@@ -18,8 +18,10 @@ public:
   /// Non-blocking read of whatever is available. Returns bytes read (0 if none, -1 on error).
   long read_some(uint8_t * buf, size_t n);
   bool write_all(const std::vector<uint8_t> & data);
+  int last_errno() const {return last_errno_;}
 
 private:
   int fd_{-1};
+  int last_errno_{0};
 };
 }  // namespace yahboom_r2_hardware

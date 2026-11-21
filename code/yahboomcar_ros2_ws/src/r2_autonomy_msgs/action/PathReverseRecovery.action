@@ -1,0 +1,8 @@
+# Goal: Trigger path reverse recovery
+bool trigger
+---
+# Result: Success or failure
+bool success
+---
+# Feedback: Distance traveled during recovery
+float32 distance_traveled

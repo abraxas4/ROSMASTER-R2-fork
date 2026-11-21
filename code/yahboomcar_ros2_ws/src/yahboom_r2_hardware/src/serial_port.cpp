@@ -37,9 +37,11 @@ bool SerialPort::open(const std::string & device, int baud, std::string & err)
   }
   fd_ = ::open(device.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
   if (fd_ < 0) {
+    last_errno_ = errno;
     err = std::string("open failed: ") + std::strerror(errno);
     return false;
   }
+  last_errno_ = 0;
   termios tio{};
   if (tcgetattr(fd_, &tio) != 0) {
     err = std::string("tcgetattr failed: ") + std::strerror(errno);
@@ -76,7 +78,9 @@ long SerialPort::read_some(uint8_t * buf, size_t n)
   if (fd_ < 0) {return -1;}
   const ssize_t r = ::read(fd_, buf, n);
   if (r < 0) {
-    return (errno == EAGAIN || errno == EWOULDBLOCK) ? 0 : -1;
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {return 0;}
+    last_errno_ = errno;
+    return -1;
   }
   return static_cast<long>(r);
 }
@@ -90,6 +94,7 @@ bool SerialPort::write_all(const std::vector<uint8_t> & data)
     const ssize_t w = ::write(fd_, data.data() + off, data.size() - off);
     if (w < 0) {
       if ((errno == EAGAIN || errno == EWOULDBLOCK) && ++spins < 100) {continue;}
+      last_errno_ = errno;
       return false;
     }
     off += static_cast<size_t>(w);
