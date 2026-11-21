@@ -147,17 +147,19 @@ ros2 run nav2_map_server map_saver_cli -f ~/my_map
 
 #### 2. 탐색 모드 (explore_mode)
 
-미지의 영역을 자동으로 탐색하며 맵을 구축합니다.
+미지의 영역을 자동으로 탐색하며 맵을 구축합니다. `explore_lite`(m-explore-ros2 Humble)가 설치되어 있어야 하고, 실제 출발은 운영자가 지시할 때만 합니다.
+
+배터리 전압이 `/battery_voltage`에서 `stop_voltage`(기본 10.5 V) 아래로 내려가면 `explore_battery_guard`가 탐색을 멈추고 Nav2 목표를 취소합니다. 이 노드는 `/cmd_vel`을 발행하지 않습니다.
+
+R2는 Ackermann이라 `use_rotate_to_heading`은 false로 둡니다. 출발할 때 목표 쪽으로 도는 것은 경로 계획(후진 페널티)이 담당하고, 후진(`allow_reversing`)은 탈출·복구용입니다.
 
 ```bash
-# 로봇 기본 시스템 실행
-ros2 launch yahboom_r2_bringup r2_bringup.launch.py use_slam:=false use_ekf:=true
+# 인자 확인 (노드는 시작하지 않음)
+ros2 launch r2_autonomy explore_mode.launch.py --show-args
 
-# 탐색 모드 실행
-ros2 launch r2_autonomy explore_mode.launch.py
+# 스택이 이미 떠 있을 때 탐색만 붙이려면 (출발 지시 후에만)
+ros2 launch r2_autonomy explore_mode.launch.py start_nav_stack:=false
 ```
-
-로봇이 자동으로 frontier(미탐색 경계)를 찾아 탐색합니다.
 
 #### 3. 순찰 모드 (patrol_mode)
 

@@ -135,8 +135,8 @@ controller_server:
 local_costmap:
   local_costmap:
     ros__parameters:
-      update_frequency: 5.0
-      publish_frequency: 2.0
+      update_frequency: 10.0
+      publish_frequency: 5.0
       global_frame: odom
       robot_base_frame: base_footprint
       use_sim_time: False
@@ -273,3 +273,19 @@ behavior_server:
     max_rotational_vel: 0.5
     min_rotational_vel: 0.2
     rotational_acc_lim: 1.5
+
+# Matches the RPP (ackermann) stack: closed-loop on EKF /odom.
+velocity_smoother:
+  ros__parameters:
+    use_sim_time: False
+    smoothing_frequency: 30.0
+    scale_velocities: False
+    feedback: "CLOSED_LOOP"
+    max_velocity: [0.30, 0.0, 0.6]
+    min_velocity: [-0.20, 0.0, -0.6]
+    max_accel: [0.8, 0.0, 1.2]
+    max_decel: [-1.2, 0.0, -1.5]
+    odom_topic: "odom"
+    odom_duration: 0.1
+    deadband_velocity: [0.0, 0.0, 0.0]
+    velocity_timeout: 1.0

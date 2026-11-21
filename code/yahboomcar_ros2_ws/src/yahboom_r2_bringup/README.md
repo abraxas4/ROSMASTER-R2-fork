@@ -124,7 +124,7 @@ flowchart TD
 - 명령은 변할 때 최대 200 Hz, 변하지 않으면 20 ms마다 보냅니다. 115200 bps에서 13바이트 프레임이라 대역은 충분하지만, 펌웨어 내부 제어 주기는 확인하지 못했습니다.
 - vx = 0이면 wz = 0이 되어 제자리에서 조향만 하는 명령은 보낼 수 없습니다. `set_car_motion` 구조의 한계입니다.
 - 펌웨어가 wz를 서보 각도로 바꿀 때 쓰는 wheelbase는 확인하지 못했습니다. `mcu_wheelbase` 파라미터로 보정합니다.
-- 좌우 바퀴 속도는 기본적으로 vx와 조향각에서 계산한 값입니다. 엔코더 직접 사용(`encoder_ticks_per_rev` > 0)은 모터 번호(M1~M4)와 한 바퀴당 틱 수를 확인한 뒤에 켜야 합니다.
+- 좌우 바퀴 속도는 기본적으로 vx와 조향각에서 계산한 값입니다. MCU 엔코더 원값(0x0D)은 `/dev/shm/r2_encoder`에만 기록하며, `encoder_ticks_per_rev`는 0으로 둡니다. 엔코더 직접 사용은 모터 번호(M1~M4)와 한 바퀴당 틱 수를 확인한 뒤에 켜야 합니다. 절차는 `yahboom_r2_hardware/README.md`에 있습니다.
 - IMU 축 부호(특히 yaw)는 실차에서 확인해야 합니다. 왼쪽으로 돌 때 `/imu/data_raw`의 `angular_velocity.z`가 양수여야 합니다.
 
 ## 6. Jetson에서 빌드·실행 (Humble 네이티브 기준)

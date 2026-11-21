@@ -278,6 +278,23 @@ void R2SystemHardware::update_states_from_report(double dt)
     }
   }
 
+  // Raw MCU encoder counts (FUNC_REPORT_ENCODER 0x0D) for later logging.
+  // Does not affect odometry while encoder_ticks_per_rev == 0.
+  if (report_.has_encoder) {
+    static double enc_acc = 0.1;
+    enc_acc += dt;
+    if (enc_acc >= 0.1) {
+      enc_acc = 0.0;
+      std::ofstream f("/dev/shm/r2_encoder.tmp", std::ios::trunc);
+      if (f) {
+        f << report_.encoder[0] << ' ' << report_.encoder[1] << ' '
+          << report_.encoder[2] << ' ' << report_.encoder[3] << "\n";
+        f.close();
+        std::rename("/dev/shm/r2_encoder.tmp", "/dev/shm/r2_encoder");
+      }
+    }
+  }
+
   // traction wheels (rear, fixed axle): v_side = vx * (1 -/+ (T/2)*tan(delta)/L)
   double w_right = vx * (1.0 + 0.5 * traction_track_ * t / wheelbase_) / wheel_radius_;
   double w_left = vx * (1.0 - 0.5 * traction_track_ * t / wheelbase_) / wheel_radius_;

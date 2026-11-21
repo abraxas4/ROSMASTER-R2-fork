@@ -30,6 +30,8 @@ install(PROGRAMS
   scripts/patrol_waypoint_generator.py
   scripts/fake_scan_publisher.py
   scripts/fake_odom_publisher.py
+  scripts/odom_compare_logger.py
+  scripts/explore_battery_guard.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
