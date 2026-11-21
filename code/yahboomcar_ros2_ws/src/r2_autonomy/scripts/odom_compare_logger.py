@@ -35,6 +35,11 @@ class OdomCompareLogger(Node):
         self.declare_parameter('log_rate', 20.0)
         self.declare_parameter('log_dir', str(Path.home() / 'r2_logs'))
         self.declare_parameter('encoder_file', '/dev/shm/r2_encoder')
+        # write rows only while moving (or commanded), plus hold_s after motion stops
+        self.declare_parameter('only_when_moving', True)
+        self.declare_parameter('motion_threshold', 0.005)  # m/s or rad/s
+        self.declare_parameter('hold_s', 2.0)
+        self.declare_parameter('cmd_stale_s', 0.5)
 
         cmd_topic = self.get_parameter('cmd_topic').value
         reported_topic = self.get_parameter('reported_odom_topic').value
@@ -42,6 +47,12 @@ class OdomCompareLogger(Node):
         log_rate = float(self.get_parameter('log_rate').value)
         log_dir = Path(self.get_parameter('log_dir').value)
         self.encoder_file = self.get_parameter('encoder_file').value
+        self.only_moving = bool(self.get_parameter('only_when_moving').value)
+        self.thr = float(self.get_parameter('motion_threshold').value)
+        self.hold_s = float(self.get_parameter('hold_s').value)
+        self.cmd_stale_s = float(self.get_parameter('cmd_stale_s').value)
+        self._cmd_t = 0.0
+        self._last_motion_t = -1e9
 
         self._cmd = (None, None)  # vx, wz
         self._reported = (None, None)
@@ -76,6 +87,7 @@ class OdomCompareLogger(Node):
 
     def _on_cmd(self, msg):
         self._cmd = (msg.linear.x, msg.angular.z)
+        self._cmd_t = self.get_clock().now().nanoseconds / 1e9
 
     def _on_reported(self, msg):
         t = msg.twist.twist
@@ -97,6 +109,14 @@ class OdomCompareLogger(Node):
 
     def _on_timer(self):
         now = self.get_clock().now().nanoseconds / 1e9
+        if self.only_moving:
+            def big(pair):
+                return any(v is not None and abs(v) > self.thr for v in pair)
+            cmd_fresh = (now - self._cmd_t) < self.cmd_stale_s
+            if (cmd_fresh and big(self._cmd)) or big(self._reported) or big(self._ekf):
+                self._last_motion_t = now
+            elif now - self._last_motion_t > self.hold_s:
+                return
         def fmt(pair, i):
             v = pair[i]
             return '' if v is None else f'{v:.6f}'
