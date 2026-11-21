@@ -58,8 +58,8 @@ def _explore_node(context, *args, **kwargs):
             parameters=[{
                 'use_sim_time': LaunchConfiguration('use_sim_time'),
                 'robot_base_frame': LaunchConfiguration('robot_base_frame'),
-                'costmap_topic': 'global_costmap/costmap',
-                'costmap_updates_topic': 'global_costmap/costmap_updates',
+                'costmap_topic': '/global_costmap/costmap',
+                'costmap_updates_topic': '/global_costmap/costmap_updates',
                 'visualize': True,
                 'planner_frequency': LaunchConfiguration('explore_planner_frequency'),
                 'progress_timeout': 30.0,
@@ -67,7 +67,7 @@ def _explore_node(context, *args, **kwargs):
                 'orientation_scale': 0.0,
                 'gain_scale': 1.0,
                 'transform_tolerance': 0.5,
-                'min_frontier_size': 0.5,
+                'min_frontier_size': LaunchConfiguration('min_frontier_size'),
                 'return_to_init': False,
             }],
         )
@@ -126,8 +126,13 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'explore_planner_frequency',
-            default_value='0.33',
-            description='How often explore_lite picks a new frontier (Hz)',
+            default_value='0.15',
+            description='How often explore_lite picks a new frontier (Hz). Conservative default.',
+        ),
+        DeclareLaunchArgument(
+            'min_frontier_size',
+            default_value='0.75',
+            description='Ignore frontiers smaller than this (m). Conservative default.',
         ),
         DeclareLaunchArgument(
             'autostart',

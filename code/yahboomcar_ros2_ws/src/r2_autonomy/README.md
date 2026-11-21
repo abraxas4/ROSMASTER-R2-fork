@@ -159,6 +159,9 @@ ros2 launch r2_autonomy explore_mode.launch.py --show-args
 
 # 스택이 이미 떠 있을 때 탐색만 붙이려면 (출발 지시 후에만)
 ros2 launch r2_autonomy explore_mode.launch.py start_nav_stack:=false
+
+맵을 만들 때 센서와 `/cmd_vel` 을 같이 남기려면 저장소의 `scripts/record_mapping_bag.sh` 를 씀. 기본 출력은 `/data/bags` 이고, 완료된 분할을 PC 로 보내는 스크립트는 `scripts/offload_bags.sh` (자동 시작하지 않음). 자세한 내용은 `scripts/README.md` 참고.
+
 ```
 
 #### 3. 순찰 모드 (patrol_mode)
